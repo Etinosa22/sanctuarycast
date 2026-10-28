@@ -2,16 +2,25 @@ import { useEffect, useRef, useState } from 'react'
 import type { Background, LibraryBackground, PresentationState, SavedTheme, Theme } from '../../../shared/types'
 import { BackgroundLayer } from '../components/SlideCanvas'
 import { ThemeEditor } from './ThemeEditor'
-import { ControlButton, PanelTitle, send } from './ui'
+import { Icon } from './icons'
+import { ControlButton, LinkButton, PanelTitle, send } from './ui'
 
 function SuggestionFeed() {
   return (
     <section className="flex min-h-0 flex-1 flex-col">
-      <PanelTitle right={<span className="rounded bg-neutral-800 px-1.5 text-[11px] text-neutral-400">Listening off</span>}>
+      <PanelTitle
+        icon="sparkles"
+        right={
+          <span className="inline-flex items-center gap-1 rounded-full bg-neutral-800/80 px-2 py-px text-[10px] text-neutral-400 ring-1 ring-white/5">
+            <span className="h-1.5 w-1.5 rounded-full bg-neutral-500" />
+            Listening off
+          </span>
+        }
+      >
         Scripture suggestions
       </PanelTitle>
       {/* Shrinks and scrolls on short laptop screens instead of running into Live control. */}
-      <div className="mx-3 flex min-h-0 flex-1 flex-col items-center justify-center-safe overflow-y-auto rounded-md border border-dashed border-neutral-700 p-3 text-center text-sm text-neutral-500">
+      <div className="mx-3 flex min-h-0 flex-1 flex-col items-center justify-center-safe overflow-y-auto rounded-xl border border-dashed border-accent-400/20 bg-accent-500/[0.04] p-3 text-center text-sm text-neutral-400">
         <p>When the preacher mentions a verse, a card appears here.</p>
         <p className="mt-2">Approve it to put it in Preview. Nothing goes Live without you.</p>
         <p className="mt-3 text-[11px] text-neutral-600">Speech detection is Phase 2.</p>
@@ -23,22 +32,22 @@ function SuggestionFeed() {
 function LiveControls({ state }: { state: PresentationState }) {
   return (
     <section>
-      <PanelTitle>Live control</PanelTitle>
+      <PanelTitle icon="monitor">Live control</PanelTitle>
       <div className="grid grid-cols-2 gap-2 px-3">
-        <ControlButton tone="go" hint="Enter" className="col-span-2 py-3 text-base" onClick={() => send({ type: 'goLive' })}>
+        <ControlButton tone="go" hint="Enter" className="col-span-2 py-3 text-base font-semibold" onClick={() => send({ type: 'goLive' })}>
           Go Live
         </ControlButton>
-        <ControlButton hint="B" active={state.blanked} onClick={() => send({ type: 'toggleMask', mask: 'blank' })}>
+        <ControlButton hint="B" icon="eyeOff" active={state.blanked} onClick={() => send({ type: 'toggleMask', mask: 'blank' })}>
           Blank
         </ControlButton>
-        <ControlButton active={state.logo} onClick={() => send({ type: 'toggleMask', mask: 'logo' })}>
+        <ControlButton icon="cross" active={state.logo} onClick={() => send({ type: 'toggleMask', mask: 'logo' })}>
           Logo
         </ControlButton>
-        <ControlButton active={state.clearText} onClick={() => send({ type: 'toggleMask', mask: 'clearText' })}>
+        <ControlButton icon="type" active={state.clearText} onClick={() => send({ type: 'toggleMask', mask: 'clearText' })}>
           Clear text
         </ControlButton>
         <ControlButton onClick={() => send({ type: 'unmask' })}>Show again</ControlButton>
-        <ControlButton tone="danger" className="col-span-2" onClick={() => send({ type: 'clearLive' })}>
+        <ControlButton tone="danger" icon="x" className="col-span-2" onClick={() => send({ type: 'clearLive' })}>
           Clear Live slide
         </ControlButton>
       </div>
@@ -68,7 +77,7 @@ function ThemeBar({ state }: { state: PresentationState }) {
 
   return (
     <section>
-      <PanelTitle>Theme → Preview</PanelTitle>
+      <PanelTitle icon="palette">Theme → Preview</PanelTitle>
       <div className="flex gap-2 px-3">
         <select
           value={match?.id ?? ''}
@@ -86,11 +95,12 @@ function ThemeBar({ state }: { state: PresentationState }) {
           ))}
         </select>
         {match && !match.builtIn && (
-          <button onClick={() => void remove()} title="Delete this saved theme" className="rounded px-2 text-neutral-400 hover:bg-red-800 hover:text-white">
-            ×
+          <button onClick={() => void remove()} title="Delete this saved theme" className="rounded-lg px-2 text-neutral-400 transition hover:bg-rose-900/70 hover:text-white">
+            <Icon name="x" size={13} />
           </button>
         )}
-        <button onClick={() => setEditing(true)} className="rounded bg-neutral-700 px-3 text-sm hover:bg-neutral-600">
+        <button onClick={() => setEditing(true)} className="btn-accent inline-flex items-center gap-1.5 rounded-lg px-3 text-sm font-medium">
+          <Icon name="edit" size={13} />
           Edit…
         </button>
       </div>
@@ -140,14 +150,13 @@ function BackgroundBar({ state }: { state: PresentationState }) {
   return (
     <section className="pb-3">
       <PanelTitle
+        icon="image"
         right={
-          <div className="flex gap-1">
-            <button onClick={importFiles} className="rounded px-1.5 text-xs text-amber-300 hover:bg-neutral-800" title="Import JPG, PNG, WebP, MP4 or WebM">
-              + Image/Video
-            </button>
-            <button onClick={() => colourInput.current?.click()} className="rounded px-1.5 text-xs text-amber-300 hover:bg-neutral-800">
-              + Colour
-            </button>
+          <div className="flex gap-0.5">
+            <LinkButton onClick={() => void importFiles()} title="Import JPG, PNG, WebP, MP4 or WebM">
+              Image/Video
+            </LinkButton>
+            <LinkButton onClick={() => colourInput.current?.click()}>Colour</LinkButton>
             <input ref={colourInput} type="color" defaultValue="#1e3a8a" className="hidden" />
           </div>
         }
@@ -160,20 +169,22 @@ function BackgroundBar({ state }: { state: PresentationState }) {
             <button
               title={`${b.name}${b.background.kind === 'video' ? ' (video)' : ''}`}
               onClick={() => send({ type: 'setBackground', background: b.background })}
-              className={`relative block aspect-video w-full overflow-hidden rounded ${
-                same(current, b.background) ? 'ring-2 ring-amber-400' : 'ring-1 ring-neutral-600 hover:ring-neutral-400'
+              className={`relative block aspect-video w-full overflow-hidden rounded-lg transition ${
+                same(current, b.background) ? 'ring-2 ring-accent-400 ring-offset-2 ring-offset-neutral-900' : 'ring-1 ring-white/10 hover:ring-accent-400/50'
               }`}
             >
               <BackgroundLayer background={b.background} />
-              {b.background.kind === 'video' && <span className="absolute right-0.5 bottom-0.5 rounded bg-black/70 px-1 text-[9px]">▶</span>}
+              {b.background.kind === 'video' && (
+                <span className="absolute right-1 bottom-1 rounded bg-black/70 px-1 text-[9px] font-semibold tracking-wide">VIDEO</span>
+              )}
             </button>
             {!b.builtIn && (
               <button
                 onClick={() => void remove(b)}
                 title="Remove background"
-                className="absolute -top-1.5 -right-1.5 hidden h-4 w-4 items-center justify-center rounded-full bg-neutral-700 text-[10px] group-hover:flex hover:bg-red-700"
+                className="absolute -top-1.5 -right-1.5 hidden h-5 w-5 items-center justify-center rounded-full bg-neutral-800 shadow ring-1 ring-white/10 group-hover:flex hover:bg-rose-700"
               >
-                ×
+                <Icon name="x" size={10} />
               </button>
             )}
           </div>
@@ -186,7 +197,7 @@ function BackgroundBar({ state }: { state: PresentationState }) {
 
 export function RightPanel({ state }: { state: PresentationState }) {
   return (
-    <aside className="flex w-72 shrink-0 flex-col gap-1 border-l border-neutral-800 bg-neutral-950/40">
+    <aside className="panel flex w-72 shrink-0 flex-col gap-1 border-y-0 border-r-0">
       <SuggestionFeed />
       <LiveControls state={state} />
       <ThemeBar state={state} />

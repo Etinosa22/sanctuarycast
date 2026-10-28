@@ -1,5 +1,7 @@
 // The church's own library (songs, imported backgrounds) in one SQLite file
-// in the app's data folder. Writes are immediate; WAL keeps them crash-safe.
+// in the app's data folder. Every write goes straight into this file and waits
+// for the disk (rollback journal, synchronous=FULL), so nothing depends on a
+// side log surviving a crash, a power cut or a forced close.
 
 import { randomUUID } from 'node:crypto'
 import { DatabaseSync } from 'node:sqlite'
@@ -36,7 +38,9 @@ export class Library {
 
   constructor(file: string, private clock: () => number = Date.now) {
     this.db = new DatabaseSync(file)
-    this.db.exec('PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA foreign_keys = ON;')
+    // Library writes are rare and tiny, so durability beats speed here. This
+    // also converts files created by earlier builds out of WAL mode.
+    this.db.exec('PRAGMA journal_mode = DELETE; PRAGMA synchronous = FULL; PRAGMA foreign_keys = ON;')
     this.db.exec(SCHEMA)
   }
 
@@ -152,6 +156,10 @@ export class Library {
       .prepare('INSERT INTO backgrounds (id, kind, name, file, colour, created_at) VALUES (?, ?, ?, ?, ?, ?)')
       .run(id, background.kind, name, background.kind === 'colour' ? null : background.file, background.kind === 'colour' ? background.colour : null, this.clock())
     return { id, name, background, builtIn: false }
+  }
+
+  journalMode(): string {
+    return (this.db.prepare('PRAGMA journal_mode').get() as { journal_mode: string }).journal_mode
   }
 
   deleteBackground(id: string): void {

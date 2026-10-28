@@ -31,10 +31,10 @@ export function TranslationsPanel({ t }: { t: Translations }) {
   }
 
   return (
-    <div className="shrink-0 border-t border-neutral-800 bg-neutral-950/60 px-2 pt-2 pb-3">
+    <div className="shrink-0 border-t border-white/5 bg-neutral-950/50 px-2 pt-2 pb-3">
       <div className="flex items-center justify-between px-1 pb-1.5">
         <h3 className="text-[11px] font-semibold tracking-wider text-neutral-400 uppercase">Translations</h3>
-        <button onClick={() => (setImporting((v) => !v), setMessage(null))} className="rounded px-1.5 text-xs text-amber-300 hover:bg-neutral-800">
+        <button onClick={() => (setImporting((v) => !v), setMessage(null))} className="rounded px-1.5 text-xs text-accent-300 hover:bg-neutral-800">
           + Import licensed
         </button>
       </div>
@@ -50,14 +50,14 @@ export function TranslationsPanel({ t }: { t: Translations }) {
                 disabled={isMain}
                 onChange={(e) => toggle(tr.code, e.target.checked)}
                 title={isMain ? 'The main translation is always available' : 'Offer as a quick switch'}
-                className="accent-amber-500"
+                className="accent-accent-500"
               />
               <span className="w-12 shrink-0 text-xs font-semibold">{tr.code}</span>
               <span className="min-w-0 flex-1 truncate text-xs text-neutral-400" title={tr.name}>
                 {tr.name}
               </span>
               {isMain ? (
-                <span className="rounded bg-amber-600 px-1.5 text-[10px] font-semibold text-white">MAIN</span>
+                <span className="rounded-md bg-gradient-to-r from-accent-500 to-accent-700 px-1.5 text-[10px] font-semibold tracking-wide text-white">MAIN</span>
               ) : (
                 <button onClick={() => makeMain(tr.code)} className="hidden rounded px-1.5 text-[10px] text-neutral-300 group-hover:block hover:bg-neutral-700">
                   Make main
@@ -74,7 +74,7 @@ export function TranslationsPanel({ t }: { t: Translations }) {
       </ul>
 
       {importing && (
-        <div className="mt-2 space-y-2 rounded-md border border-neutral-700 bg-neutral-900 p-2 text-xs">
+        <div className="card mt-2 space-y-2 p-2 text-xs">
           <p className="text-neutral-400">
             For NIV, NLT, NKJV, AMP, TPT and other copyrighted versions. Use a file the church is licensed to project: CSV with columns
             Book, Chapter, Verse, Text.
@@ -84,13 +84,13 @@ export function TranslationsPanel({ t }: { t: Translations }) {
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" className="field min-w-0 flex-1 text-xs" />
           </div>
           <label className="flex items-start gap-2 text-neutral-300">
-            <input type="checkbox" checked={licensed} onChange={(e) => setLicensed(e.target.checked)} className="mt-0.5 accent-amber-500" />
+            <input type="checkbox" checked={licensed} onChange={(e) => setLicensed(e.target.checked)} className="mt-0.5 accent-accent-500" />
             The church holds a licence from the publisher to project this translation.
           </label>
           <button
             onClick={() => void runImport()}
             disabled={!licensed || !code || !name}
-            className="w-full rounded bg-amber-600 py-1.5 font-medium text-white hover:bg-amber-500 disabled:opacity-40"
+            className="btn-accent w-full rounded-lg py-1.5 font-semibold"
           >
             Choose file and import
           </button>

@@ -40,13 +40,13 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 
 function Segmented<T extends string>({ value, options, onChange }: { value: T; options: [T, string][]; onChange: (v: T) => void }) {
   return (
-    <div className="flex overflow-hidden rounded-md ring-1 ring-neutral-700">
+    <div className="flex gap-0.5 rounded-lg bg-neutral-950/70 p-0.5 ring-1 ring-white/5">
       {options.map(([v, label]) => (
         <button
           key={v}
           type="button"
           onClick={() => onChange(v)}
-          className={`flex-1 py-1.5 text-xs ${value === v ? 'bg-amber-600 text-white' : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'}`}
+          className={`flex-1 rounded-md py-1.5 text-xs font-medium transition ${value === v ? 'bg-accent-600 text-white shadow-sm' : 'text-neutral-300 hover:bg-white/5'}`}
         >
           {label}
         </button>
@@ -65,7 +65,7 @@ function Slider(props: { value: number; min: number; max: number; step?: number;
         step={props.step ?? 1}
         value={props.value}
         onChange={(e) => props.onChange(Number(e.target.value))}
-        className="flex-1 accent-amber-500"
+        className="flex-1 accent-accent-500"
       />
       <span className="w-14 text-right text-xs text-neutral-300 tabular-nums">
         {props.value}
@@ -117,8 +117,8 @@ export function ThemeEditor({ state, onClose, onSaved }: { state: PresentationSt
   const fontValue = FONTS.find(([, stack]) => stack === draft.fontFamily)?.[1] ?? draft.fontFamily
 
   return (
-    <div data-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6" onKeyDown={(e) => e.key === 'Escape' && cancel()}>
-      <div className="flex max-h-full w-full max-w-6xl flex-col rounded-lg border border-neutral-700 bg-neutral-900 shadow-2xl">
+    <div data-modal className="fixed inset-0 z-50 flex items-center justify-center bg-[#03050d]/80 p-6" onKeyDown={(e) => e.key === 'Escape' && cancel()}>
+      <div className="flex max-h-full w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-neutral-900 shadow-[0_40px_100px_-20px_rgb(0_0_0/0.9)]">
         <div className="flex items-center justify-between border-b border-neutral-800 px-4 py-3">
           <div>
             <h2 className="font-semibold">Theme</h2>
@@ -181,11 +181,11 @@ export function ThemeEditor({ state, onClose, onSaved }: { state: PresentationSt
             </Field>
             <div className="flex gap-4 text-sm">
               <label className="flex items-center gap-2">
-                <input type="checkbox" checked={draft.shadow} onChange={(e) => change({ shadow: e.target.checked })} className="accent-amber-500" />
+                <input type="checkbox" checked={draft.shadow} onChange={(e) => change({ shadow: e.target.checked })} className="accent-accent-500" />
                 Shadow
               </label>
               <label className="flex items-center gap-2">
-                <input type="checkbox" checked={draft.outline} onChange={(e) => change({ outline: e.target.checked })} className="accent-amber-500" />
+                <input type="checkbox" checked={draft.outline} onChange={(e) => change({ outline: e.target.checked })} className="accent-accent-500" />
                 Outline
               </label>
             </div>
@@ -219,11 +219,11 @@ export function ThemeEditor({ state, onClose, onSaved }: { state: PresentationSt
               <span className="text-xs text-neutral-400">Save for reuse</span>
               <div className="flex gap-2">
                 <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Theme name" className="field min-w-0 flex-1" />
-                <button onClick={save} className="rounded bg-neutral-700 px-3 text-sm hover:bg-neutral-600">
+                <button onClick={save} className="rounded-lg bg-neutral-700/80 px-3 text-sm ring-1 ring-white/5 transition hover:bg-neutral-600">
                   Save
                 </button>
               </div>
-              {message && <p className="text-xs text-amber-300">{message}</p>}
+              {message && <p className="text-xs text-accent-300">{message}</p>}
             </div>
           </div>
         </div>
@@ -236,7 +236,7 @@ export function ThemeEditor({ state, onClose, onSaved }: { state: PresentationSt
           <button onClick={cancel} className="rounded px-3 py-1.5 text-sm text-neutral-300 hover:bg-neutral-800">
             Cancel
           </button>
-          <button onClick={onClose} className="rounded bg-amber-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-amber-500">
+          <button onClick={onClose} className="btn-accent rounded-lg px-4 py-1.5 text-sm font-semibold">
             Done
           </button>
         </div>

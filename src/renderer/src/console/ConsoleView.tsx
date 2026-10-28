@@ -11,6 +11,7 @@ import { SlideStrip } from './SlideStrip'
 import { SongEditor } from './SongEditor'
 import { TopBar } from './TopBar'
 import { useTranslations } from './useTranslations'
+import { Icon } from './icons'
 import { isTyping, send, sendService } from './ui'
 
 /** Edits Preview text. Keeps a local draft so the cursor doesn't jump while IPC round-trips. */
@@ -28,7 +29,7 @@ function PreviewEditor({ slideId, text }: { slideId: string | null; text: string
       }}
       placeholder="Fix a typo here before it goes live"
       title="Edits change Preview only. Ctrl+Enter sends Live while typing."
-      className="h-16 w-full resize-none rounded bg-neutral-800 p-2 text-xs outline-none focus:ring-1 focus:ring-amber-400 disabled:opacity-40"
+      className="h-16 w-full resize-none rounded-lg border border-white/5 bg-neutral-950/70 p-2 text-xs leading-relaxed text-neutral-200 outline-none transition focus:border-amber-400/60 focus:ring-2 focus:ring-amber-400/20 disabled:opacity-40"
     />
   )
 }
@@ -38,28 +39,42 @@ function PreviewLive({ state }: { state: PresentationState }) {
   const mask = state.blanked ? 'BLANK' : state.logo ? 'LOGO' : state.clearText ? 'TEXT CLEARED' : null
   return (
     <div className="grid shrink-0 grid-cols-2 gap-4">
-      <section className="flex min-w-0 flex-col gap-1.5">
-        <h2 className="flex justify-between text-xs font-semibold text-amber-300">
-          PREVIEW <span className="font-normal text-neutral-500">double-click or Enter to go live</span>
+      <section className="card flex min-w-0 flex-col gap-2 p-2.5">
+        <h2 className="flex items-center justify-between px-0.5 text-xs">
+          <span className="inline-flex items-center gap-1.5 rounded-md bg-amber-400/15 px-2 py-0.5 font-semibold tracking-wider text-amber-300 ring-1 ring-amber-400/25">
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-300" />
+            PREVIEW
+          </span>
+          <span className="text-[11px] text-neutral-500">double-click or Enter to go live</span>
         </h2>
-        <div className="aspect-video cursor-pointer rounded ring-2 ring-amber-400/70" onDoubleClick={() => send({ type: 'goLive' })}>
+        <div
+          className="aspect-video cursor-pointer overflow-hidden rounded-lg ring-2 ring-amber-400/60 shadow-[0_8px_30px_-12px_rgb(251_191_36/0.35)]"
+          onDoubleClick={() => send({ type: 'goLive' })}
+        >
           <SlideCanvas frame={state.preview} />
         </div>
         <PreviewEditor slideId={state.preview?.slide.id ?? null} text={state.preview?.slide.text ?? ''} />
       </section>
 
-      <section className="flex min-w-0 flex-col gap-1.5">
-        <h2 className="flex justify-between text-xs font-semibold text-red-400">
-          LIVE
-          <span className="font-normal text-neutral-500 tabular-nums">
+      <section className="card flex min-w-0 flex-col gap-2 p-2.5">
+        <h2 className="flex items-center justify-between px-0.5 text-xs">
+          <span className="inline-flex items-center gap-1.5 rounded-md bg-rose-500/15 px-2 py-0.5 font-semibold tracking-wider text-rose-300 ring-1 ring-rose-400/25">
+            <span className={`h-1.5 w-1.5 rounded-full bg-rose-400 ${state.live && !state.blanked ? 'live-dot' : ''}`} />
+            LIVE
+          </span>
+          <span className="text-[11px] text-neutral-500 tabular-nums">
             {state.live && state.liveSince ? `on screen ${formatElapsed(now - state.liveSince)}` : 'nothing live'} · read-only
           </span>
         </h2>
-        <div className="relative aspect-video rounded ring-2 ring-red-500/80">
+        <div className="relative aspect-video overflow-hidden rounded-lg ring-2 ring-rose-500/70 shadow-[0_8px_30px_-12px_rgb(244_63_94/0.45)]">
           <SlideCanvas frame={state.live} masks={state} />
-          {mask && <span className="absolute top-2 left-2 rounded bg-red-600 px-2 py-0.5 text-xs font-bold">{mask}</span>}
+          {mask && (
+            <span className="absolute top-2 left-2 rounded-md bg-rose-600/90 px-2 py-0.5 text-[11px] font-bold tracking-wider shadow-lg">{mask}</span>
+          )}
         </div>
-        <div className="h-16 overflow-y-auto rounded bg-neutral-800/50 p-2 text-xs whitespace-pre-line text-neutral-400">{state.live?.slide.text ?? '—'}</div>
+        <div className="h-16 overflow-y-auto rounded-lg border border-white/5 bg-neutral-950/40 p-2 text-xs leading-relaxed whitespace-pre-line text-neutral-400">
+          {state.live?.slide.text ?? '—'}
+        </div>
       </section>
     </div>
   )
@@ -75,13 +90,17 @@ function StatusBar() {
   }, [])
 
   return (
-    <footer className="flex h-7 shrink-0 items-center gap-4 border-t border-neutral-800 bg-neutral-950 px-4 text-[11px] text-neutral-400">
+    <footer className="flex h-8 shrink-0 items-center gap-4 border-t border-white/5 bg-neutral-950/80 px-4 text-[11px] text-neutral-400">
       {displays && (
         <>
-          <span>
+          <span className="inline-flex items-center gap-1.5">
+            <Icon name="monitor" size={13} className="text-accent-400" />
             {displays.count} display{displays.count === 1 ? '' : 's'}
           </span>
-          <span className={displays.mainOutput === 'closed' ? 'font-semibold text-red-400' : ''}>Main output: {displays.mainOutput}</span>
+          <span className={`inline-flex items-center gap-1.5 ${displays.mainOutput === 'closed' ? 'font-semibold text-rose-400' : ''}`}>
+            <span className={`h-1.5 w-1.5 rounded-full ${displays.mainOutput === 'closed' ? 'bg-rose-500' : 'bg-emerald-400'}`} />
+            Main output: {displays.mainOutput}
+          </span>
           <span>Stage: {displays.stageOutput}</span>
         </>
       )}
@@ -96,15 +115,18 @@ function StatusBar() {
           ['Ctrl+F', 'search']
         ].map(([k, label]) => (
           <span key={k} className="mx-1.5 whitespace-nowrap">
-            <kbd className="rounded bg-neutral-800 px-1 text-neutral-300">{k}</kbd> {label}
+            <kbd className="rounded-md border border-white/5 bg-neutral-800/80 px-1 py-px font-sans text-[10px] text-neutral-300">{k}</kbd> {label}
           </span>
         ))}
       </span>
-      <span>Auto-save on</span>
-      <button className="rounded px-2 hover:bg-neutral-800 hover:text-white" onClick={() => void window.sc.reopenOutputs()}>
+      <span className="inline-flex items-center gap-1.5">
+        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+        Auto-save on
+      </span>
+      <button className="rounded-md px-2 py-0.5 transition hover:bg-accent-500/15 hover:text-accent-200" onClick={() => void window.sc.reopenOutputs()}>
         Reopen outputs
       </button>
-      <button className="rounded px-2 hover:bg-neutral-800 hover:text-white" onClick={() => void window.sc.openStage()}>
+      <button className="rounded-md px-2 py-0.5 transition hover:bg-accent-500/15 hover:text-accent-200" onClick={() => void window.sc.openStage()}>
         Open stage display
       </button>
     </footer>
@@ -236,7 +258,7 @@ export function ConsoleView() {
   }
 
   return (
-    <div className="flex h-screen flex-col bg-neutral-900 text-neutral-100">
+    <div className="console-bg flex h-screen flex-col font-sans text-neutral-100">
       <TopBar
         serviceTitle={service.title}
         searchRef={searchRef}

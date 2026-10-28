@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import type { PresentationState, ServiceState, WindowRole } from '../shared/types'
 import { bookIdFromName } from '../parser/reference'
-import { mediaPathFromUrl } from './backgrounds'
+import { mediaPathFromUrl, recoverOrphanMedia } from './backgrounds'
 import { BibleLibrary } from './bible/bibleLibrary'
 import { Library } from './db/library'
 import { PresentationEngine, toOutputView, toStageView } from './engine/presentationEngine'
@@ -42,6 +42,8 @@ function start(): void {
   const bibles = new BibleLibrary(resourcePath('bibles'), join(dataDir, 'bibles'), bookIdFromName)
   const library = new Library(join(dataDir, 'library.sqlite'))
   library.seedOnce('starter-songs', () => demoSongs().forEach((s) => library.saveSong(s)))
+  const recovered = recoverOrphanMedia(library, mediaDir)
+  if (recovered) console.warn(`[backgrounds] re-added ${recovered} imported file(s) that had lost their library record`)
   const stateStore = new JsonStore<PresentationState>(join(dataDir, 'session-state.json'), (raw) => hydrateState(raw, Date.now()))
   const serviceStore = new JsonStore<ServiceState>(join(dataDir, 'service.json'), hydrateService)
 

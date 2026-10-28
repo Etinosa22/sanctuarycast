@@ -1,8 +1,9 @@
-import { existsSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { importMediaFile, mediaPathFromUrl, removeMediaFile, STARTER_BACKGROUNDS } from '../src/main/backgrounds'
+import { spawnSync } from 'node:child_process'
+import { importMediaFile, mediaPathFromUrl, recoverOrphanMedia, removeMediaFile, STARTER_BACKGROUNDS } from '../src/main/backgrounds'
 import { Library } from '../src/main/db/library'
 import { DEFAULT_THEME } from '../src/main/engine/presentationEngine'
 import { isBackground, isSafeColour, isSongInput, isTheme } from '../src/main/engine/validate'
@@ -166,5 +167,47 @@ describe('themes', () => {
     expect(isTheme({ ...theme, margin: 9999 })).toBe(false)
     const { colour: _c, ...partial } = theme
     expect(isTheme(partial)).toBe(false)
+  })
+})
+
+describe('background persistence', () => {
+  const uuidFile = (n: number, ext: string) => `0b8e9f2a-1c3d-4e5f-8a9b-0c1d2e3f4a5${n}.${ext}`
+
+  it('writes straight to the file, not a side log', () => {
+    expect(lib.journalMode()).toBe('delete')
+  })
+
+  it('a background survives the app being killed without closing', () => {
+    const file = join(dir, 'library.sqlite')
+    lib.close()
+    // Same settings as Library, then a hard kill straight after the insert.
+    const child = spawnSync(process.execPath, [
+      '-e',
+      `const { DatabaseSync } = require('node:sqlite');
+       const d = new DatabaseSync(${JSON.stringify(file)});
+       d.exec('PRAGMA journal_mode = DELETE; PRAGMA synchronous = FULL;');
+       d.prepare("INSERT INTO backgrounds (id, kind, name, file, colour, created_at) VALUES ('k1', 'image', 'Kept', '${uuidFile(1, 'png')}', NULL, 1)").run();
+       process.kill(process.pid, 'SIGKILL');`
+    ])
+    expect(child.status === 0).toBe(false) // it really was killed
+    lib = new Library(file)
+    expect(lib.listBackgrounds().map((b) => b.name)).toEqual(['Kept'])
+  })
+
+  it('re-adds imported files that lost their record, once, and ignores anything else', () => {
+    const media = join(dir, 'backgrounds')
+    mkdirSync(media, { recursive: true })
+    writeFileSync(join(media, uuidFile(1, 'jpg')), 'a')
+    writeFileSync(join(media, uuidFile(2, 'mp4')), 'b')
+    writeFileSync(join(media, uuidFile(3, 'png')), 'c')
+    writeFileSync(join(media, 'notes.txt'), 'not media')
+    lib.addBackground('Still known', { kind: 'image', file: uuidFile(3, 'png') })
+
+    expect(recoverOrphanMedia(lib, media)).toBe(2)
+    expect(lib.listBackgrounds().map((b) => `${b.name}:${b.background.kind}`).sort()).toEqual(
+      ['Recovered image 1:image', 'Recovered video 2:video', 'Still known:image'].sort()
+    )
+    expect(recoverOrphanMedia(lib, media)).toBe(0)
+    expect(recoverOrphanMedia(lib, join(dir, 'missing'))).toBe(0)
   })
 })

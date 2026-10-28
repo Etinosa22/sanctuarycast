@@ -2,7 +2,9 @@ import { useEffect, useState, type ReactNode } from 'react'
 import type { BibleSearchResult, ServiceItem, ServiceState, SongSummary } from '../../../shared/types'
 import { ServiceOrderPanel } from './ServiceOrderPanel'
 import type { Selection } from './selection'
+import { Icon, type IconName } from './icons'
 import { TranslationsPanel } from './TranslationsPanel'
+import { LinkButton, PanelTitle } from './ui'
 import type { Translations } from './useTranslations'
 
 export type LeftTab = 'service' | 'songs' | 'word'
@@ -26,8 +28,8 @@ function Row(props: { onClick: () => void; active?: boolean; title: string; sub?
   return (
     <li
       onClick={props.onClick}
-      className={`group flex cursor-pointer items-center gap-2 rounded-md border px-2 py-1.5 ${
-        props.active ? 'border-amber-400/70 bg-neutral-800' : 'border-transparent hover:bg-neutral-900'
+      className={`group flex cursor-pointer items-center gap-2 rounded-lg border px-2.5 py-1.5 transition ${
+        props.active ? 'border-accent-400/40 bg-accent-500/12 shadow-[inset_3px_0_0_var(--color-accent-400)]' : 'border-transparent hover:bg-white/[0.04]'
       }`}
     >
       <div className="min-w-0 flex-1">
@@ -53,12 +55,9 @@ function SongsTab(props: { version: number; selection: Selection | null; onOpenS
   const openId = props.selection?.source === 'song' ? props.selection.songId : null
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex items-center justify-between px-3 pt-3 pb-2">
-        <h2 className="text-[11px] font-semibold tracking-wider text-neutral-400 uppercase">Song library</h2>
-        <button onClick={() => props.onEditSong(null)} className="rounded px-1.5 text-xs text-amber-300 hover:bg-neutral-800">
-          + New song
-        </button>
-      </div>
+      <PanelTitle icon="music" right={<LinkButton onClick={() => props.onEditSong(null)}>New song</LinkButton>}>
+        Song library
+      </PanelTitle>
       <SearchBox value={filter} onChange={setFilter} placeholder="Search song titles" autoFocus />
       <ul className="min-h-0 flex-1 space-y-1 overflow-y-auto px-2 pb-2">
         {songs.map((s) => (
@@ -108,9 +107,7 @@ function WordTab(props: {
   const openTitle = props.selection?.source === 'bible' ? props.selection.item.title : null
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="px-3 pt-3 pb-2">
-        <h2 className="text-[11px] font-semibold tracking-wider text-neutral-400 uppercase">Word · {props.translations.main}</h2>
-      </div>
+      <PanelTitle icon="book">Word · {props.translations.main}</PanelTitle>
       <form
         onSubmit={(e) => {
           e.preventDefault()
@@ -126,7 +123,7 @@ function WordTab(props: {
             sub={result.passage.slides[0]?.text}
             active={result.passage.title === openTitle}
             onClick={() => props.onOpenPassage(result.passage!)}
-            right={<span className="text-[11px] text-amber-300">Enter</span>}
+            right={<span className="text-[11px] text-accent-300">Enter</span>}
           />
         )}
         {query.trim() && !result?.passage && result?.hits.length === 0 && (
@@ -165,20 +162,27 @@ export function LeftPanel(props: {
   onSearchRef: (ref: string) => void
   translations: Translations
 }) {
-  const tabs: [LeftTab, string][] = [
-    ['service', 'Service'],
-    ['songs', 'Songs'],
-    ['word', 'Word']
+  const tabs: [LeftTab, string, IconName][] = [
+    ['service', 'Service', 'list'],
+    ['songs', 'Songs', 'music'],
+    ['word', 'Word', 'book']
   ]
   return (
-    <aside className="flex w-64 shrink-0 flex-col border-r border-neutral-800 bg-neutral-950/40">
-      <div className="flex border-b border-neutral-800">
-        {tabs.map(([key, label]) => (
+    <aside className="panel flex w-64 shrink-0 flex-col border-y-0 border-l-0">
+      <div className="m-2 mb-0 flex gap-1 rounded-xl bg-neutral-950/70 p-1 ring-1 ring-white/5" role="tablist">
+        {tabs.map(([key, label, icon]) => (
           <button
             key={key}
+            role="tab"
+            aria-selected={props.tab === key}
             onClick={() => props.onTab(key)}
-            className={`flex-1 py-2 text-sm font-medium ${props.tab === key ? 'border-b-2 border-amber-400 text-white' : 'text-neutral-400 hover:text-neutral-200'}`}
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1.5 text-[13px] font-medium transition ${
+              props.tab === key
+                ? 'bg-gradient-to-b from-accent-500/40 to-accent-700/35 text-white shadow-sm ring-1 ring-accent-300/25'
+                : 'text-neutral-400 hover:bg-white/[0.04] hover:text-neutral-200'
+            }`}
           >
+            <Icon name={icon} size={14} />
             {label}
           </button>
         ))}

@@ -8,6 +8,35 @@ Phase 1, Steps 1–8 done. Still open in Phase 1:
 
 The Phase 1 demo is ready to show the church.
 
+## 2026-10-28 — Midnight redesign and background persistence fix
+Requested: a more beautiful, modern UI; uploaded images must stay after the app closes.
+
+### Bug: imported backgrounds disappeared
+- What happened:
+  - After a restart, the library database (`library.sqlite`) had no background rows. Songs saved earlier and the saved themes were also gone, and the starter hymns were re-seeded at 15:59.
+  - The image files were still in `%APPDATA%\sanctuarycast\backgrounds`.
+  - The library was effectively reset between two app runs.
+- Cause: not proven. No database errors in any log. The most likely explanation is that data held in SQLite's write-ahead log was discarded between runs, during a session with many forced app restarts and test scripts also opening the file.
+- Fix:
+  - Library DB now uses `journal_mode=DELETE` and `synchronous=FULL`: every change is written into the file itself and waits for the disk. Old WAL-mode files are converted on open.
+  - **Recovery on every start:** any imported image/video in the backgrounds folder without a library record is re-added ("Recovered image N"). That brought back the two missing uploads; an upload can no longer silently vanish.
+  - Deleting a background removes the file first, then the record. If Windows holds the file, the record is kept and the operator is told.
+- Tests: journal mode; a child process inserts a background and is hard-killed, and the row survives; orphan recovery (once only, ignores non-media files).
+- My two test files from earlier ("Recovered image 3" gradient and "Recovered video 4") were recovered too. Deleting them was blocked, so remove them with × in the Background bar.
+
+### Midnight look (chosen from Midnight / Graphite / Light)
+- The neutral palette is re-tinted to navy, and an indigo-violet `accent` is used for selection and actions. **Amber remains reserved for Preview and rose/red for Live.**
+- Backdrop: two soft radial glows, no blur filters (cheap on the target laptop's integrated graphics).
+- Top bar: logo mark, gradient wordmark, search with icon, restyled results list.
+- Left panel: pill tabs with icons; service items with numbered badges, kind tags and a left accent bar on the selected item; pulsing Live dot.
+- Preview/Live: cards with PREVIEW/LIVE badges (the Live dot pulses while something is up), glow rings, rounded slides.
+- Slide strip: card, rounded thumbnails that lift on hover, LIVE/PREVIEW chips, gradient "Add to service".
+- Right panel: section icons, Go Live emerald gradient, active mask buttons glow rose, icon buttons, rounded background swatches with an offset ring.
+- Dialogs (song, theme): rounded cards, deep shadow, segmented controls, gradient primary buttons. Status bar has status dots and keycaps.
+- Icons are hand-drawn inline SVG (`console/icons.tsx`), so no icon library dependency.
+- Custom CSS components live in Tailwind's `components` layer so utility classes can override them (this fixed the search icon overlapping the placeholder).
+- Checked at 1920×1080 and 1366×705: console, search dropdown and theme dialog.
+
 ## 2026-10-28 — More translations and a translation picker
 Requested: other Bible translations, and a section at the bottom of the Word tab to choose translations.
 

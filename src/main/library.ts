@@ -150,8 +150,15 @@ export function registerLibraryIpc({ bibles, library, mediaDir, engineState, con
     const s = engineState()
     const inUse = [s.live?.background, s.preview?.background, s.background].some((b) => JSON.stringify(b) === JSON.stringify(bg.background))
     if (inUse) return { ok: false, reason: 'This background is in Preview or Live. Switch to another one first.' }
+    // File first: if Windows won't let go of it, keep the record so the two never disagree.
+    if (bg.background.kind !== 'colour') {
+      try {
+        removeMediaFile(mediaDir, bg.background.file)
+      } catch {
+        return { ok: false, reason: 'The file is busy. Close anything using it and try again.' }
+      }
+    }
     library.deleteBackground(id)
-    if (bg.background.kind !== 'colour') removeMediaFile(mediaDir, bg.background.file)
     return { ok: true }
   })
 }

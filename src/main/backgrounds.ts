@@ -2,9 +2,10 @@
 // random name, then served to windows as sc-media://bg/<file>.
 
 import { randomUUID } from 'node:crypto'
-import { copyFileSync, mkdirSync, rmSync, statSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, readdirSync, rmSync, statSync } from 'node:fs'
 import { basename, extname, join } from 'node:path'
 import type { Background, LibraryBackground } from '../shared/types'
+import type { Library } from './db/library'
 import { isMediaFileName } from './engine/validate'
 
 export const IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp']
@@ -36,8 +37,27 @@ export function importMediaFile(source: string, dir: string): ImportResult {
   return { ok: true, name: basename(source, extname(source)), background: { kind, file } }
 }
 
+/** Throws if the file exists but can't be deleted (e.g. Windows has it open). */
 export function removeMediaFile(dir: string, file: string): void {
   if (isMediaFileName(file)) rmSync(join(dir, file), { force: true })
+}
+
+/**
+ * Safety net run at every start: any imported image or video in the folder
+ * that has no library record is added back, so an upload can never silently
+ * disappear. Returns how many were recovered.
+ */
+export function recoverOrphanMedia(library: Library, dir: string): number {
+  if (!existsSync(dir)) return 0
+  const known = new Set(library.listBackgrounds().flatMap((b) => (b.background.kind === 'colour' ? [] : [b.background.file])))
+  const orphans = readdirSync(dir).filter((f) => isMediaFileName(f) && !known.has(f))
+  // Oldest first so numbering follows the order they were added.
+  orphans.sort((a, b) => statSync(join(dir, a)).mtimeMs - statSync(join(dir, b)).mtimeMs)
+  orphans.forEach((file, i) => {
+    const kind = VIDEO_EXTENSIONS.includes(extname(file).slice(1)) ? 'video' : 'image'
+    library.addBackground(`Recovered ${kind} ${i + 1}`, { kind, file })
+  })
+  return orphans.length
 }
 
 /** Resolves a sc-media://bg/<file> request to a path, or null if it isn't one of ours. */

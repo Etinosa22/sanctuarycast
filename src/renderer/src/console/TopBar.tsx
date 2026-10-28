@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type RefObject } from 'react'
 import type { ServiceItem, SongSummary } from '../../../shared/types'
+import { Icon, Logo } from './icons'
 
 type Result =
   | { kind: 'passage'; item: ServiceItem }
@@ -48,13 +49,17 @@ export function TopBar({ serviceTitle, searchRef, actions }: { serviceTitle: str
   }
 
   return (
-    <header className="flex h-12 shrink-0 items-center gap-4 border-b border-neutral-800 bg-neutral-950 px-4">
-      <div className="w-56 shrink-0">
-        <div className="text-sm leading-tight font-semibold">SanctuaryCast</div>
-        <div className="truncate text-[11px] text-neutral-400">{serviceTitle}</div>
+    <header className="flex h-14 shrink-0 items-center gap-4 border-b border-white/5 bg-neutral-950/60 px-4">
+      <div className="flex w-56 shrink-0 items-center gap-2.5">
+        <Logo size={30} />
+        <div className="min-w-0">
+          <div className="brand-text text-[15px] leading-tight font-semibold tracking-tight">SanctuaryCast</div>
+          <div className="truncate text-[11px] text-neutral-400">{serviceTitle}</div>
+        </div>
       </div>
 
       <div className="relative max-w-2xl flex-1">
+        <Icon name="search" size={15} className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-neutral-500" />
         <input
           ref={searchRef}
           value={query}
@@ -68,25 +73,25 @@ export function TopBar({ serviceTitle, searchRef, actions }: { serviceTitle: str
             else if (e.key === 'Escape') (setQuery(''), e.currentTarget.blur())
           }}
           placeholder='Search Bible or songs: "John 5:10", "Psalm 23", "Amazing Grace"   (Ctrl+F)'
-          className="field h-8 w-full"
+          className="field h-9 w-full rounded-xl pl-9"
         />
         {open && query.trim() && (
-          <ul className="absolute top-9 right-0 left-0 z-40 max-h-[70vh] overflow-y-auto rounded-md border border-neutral-700 bg-neutral-900 py-1 shadow-2xl">
+          <ul className="absolute top-11 right-0 left-0 z-40 max-h-[70vh] overflow-y-auto rounded-xl border border-white/10 bg-neutral-900 py-1.5 shadow-[0_24px_60px_-12px_rgb(0_0_0/0.8)]">
             {results.map((r, i) => {
               const [tag, tagClass, title, sub] =
                 r.kind === 'passage'
-                  ? ['Bible', 'bg-amber-900/70 text-amber-200', r.item.title, r.item.slides[0]?.text]
+                  ? ['Bible', 'bg-amber-500/15 text-amber-200 ring-1 ring-amber-400/20', r.item.title, r.item.slides[0]?.text]
                   : r.kind === 'song'
-                    ? ['Song', 'bg-sky-900/70 text-sky-200', r.song.title, r.song.author]
-                    : ['Verse', 'bg-neutral-800 text-neutral-300', r.ref, r.text]
+                    ? ['Song', 'bg-sky-500/15 text-sky-300 ring-1 ring-sky-400/20', r.song.title, r.song.author]
+                    : ['Verse', 'bg-neutral-700/60 text-neutral-300 ring-1 ring-white/10', r.ref, r.text]
               return (
                 <li
                   key={i}
                   onMouseDown={(e) => (e.preventDefault(), pick(r))}
                   onMouseEnter={() => setActive(i)}
-                  className={`flex cursor-pointer items-start gap-2 px-3 py-2 ${i === active ? 'bg-neutral-800' : ''}`}
+                  className={`mx-1.5 flex cursor-pointer items-start gap-2.5 rounded-lg px-2.5 py-2 ${i === active ? 'bg-accent-500/15' : ''}`}
                 >
-                  <span className={`mt-0.5 shrink-0 rounded px-1 text-[11px] ${tagClass}`}>{tag}</span>
+                  <span className={`mt-0.5 shrink-0 rounded-md px-1.5 py-px text-[10px] font-medium ${tagClass}`}>{tag}</span>
                   <div className="min-w-0">
                     <div className="text-sm">{title}</div>
                     {sub && <div className="line-clamp-1 text-xs text-neutral-500">{sub}</div>}

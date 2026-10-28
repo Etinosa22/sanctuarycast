@@ -59,8 +59,8 @@ export function SongEditor({ songId, onClose, onSaved }: { songId: string | null
   if (!loaded) return null
 
   return (
-    <div data-modal className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6" onKeyDown={(e) => e.key === 'Escape' && onClose()}>
-      <div className="flex max-h-full w-full max-w-4xl flex-col rounded-lg border border-neutral-700 bg-neutral-900 shadow-2xl">
+    <div data-modal className="fixed inset-0 z-50 flex items-center justify-center bg-[#03050d]/80 p-6" onKeyDown={(e) => e.key === 'Escape' && onClose()}>
+      <div className="flex max-h-full w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-neutral-900 shadow-[0_40px_100px_-20px_rgb(0_0_0/0.9)]">
         <div className="flex items-center justify-between border-b border-neutral-800 px-4 py-3">
           <h2 className="font-semibold">{songId ? 'Edit song' : 'New song'}</h2>
           <button onClick={onClose} className="rounded px-2 text-neutral-400 hover:bg-neutral-800 hover:text-white">
@@ -129,7 +129,7 @@ export function SongEditor({ songId, onClose, onSaved }: { songId: string | null
           <button onClick={onClose} className="rounded px-3 py-1.5 text-sm text-neutral-300 hover:bg-neutral-800">
             Cancel
           </button>
-          <button onClick={save} className="rounded bg-amber-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-amber-500">
+          <button onClick={save} className="btn-accent rounded-lg px-4 py-1.5 text-sm font-semibold">
             Save song
           </button>
         </div>
