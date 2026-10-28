@@ -1,13 +1,17 @@
 // Electron main process entry: owns the presentation engine, the service order,
 // auto-save and IPC.
 
-import { app, BrowserWindow, ipcMain, net, protocol } from 'electron'
+import { app, BrowserWindow, ipcMain, net, protocol, session } from 'electron'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import type { PresentationState, ServiceState, WindowRole } from '../shared/types'
+import { ReferenceDetector } from '../ai/detector'
+import { WhisperSidecar } from '../ai/whisperSidecar'
+import type { AiEvent, PresentationState, ServiceState, WindowRole } from '../shared/types'
 import { bookIdFromName } from '../parser/reference'
 import { mediaPathFromUrl, recoverOrphanMedia } from './backgrounds'
+import { registerAiIpc } from './ai'
 import { BibleLibrary } from './bible/bibleLibrary'
+import { passageItem, translationSettings } from './bible/lookup'
 import { Library } from './db/library'
 import { PresentationEngine, toOutputView, toStageView } from './engine/presentationEngine'
 import { hydrateService, hydrateState, isEngineAction, isServiceAction } from './engine/validate'
@@ -117,11 +121,34 @@ function start(): void {
     consoleFor: (id) => (windows.roleOf(id) === 'console' ? (windows.get('console') ?? null) : null)
   })
 
+  // Scripture detection: whisper runs as its own process so it can never stall slides.
+  const emitAi = (e: AiEvent) => windows.get('console')?.webContents.send('ai:event', e)
+  const sidecar = new WhisperSidecar(resourcePath('ai', 'bin', 'whisper-server.exe'), resourcePath('ai', 'models', 'ggml-base.en-q5_1.bin'), (status) =>
+    emitAi({ type: 'status', status })
+  )
+  registerAiIpc({
+    sidecar,
+    detector: new ReferenceDetector(),
+    lookup: (ref) => passageItem(bibles, translationSettings(bibles, library).main, ref, engine.state.theme),
+    liveLabel: () => (engine.state.live?.slide.kind === 'scripture' ? engine.state.live.slide.label : undefined),
+    isConsole: (id) => windows.roleOf(id) === 'console',
+    emit: emitAi
+  })
+
+  // Microphone: only the operator console, audio only. Everything else is refused.
+  session.defaultSession.setPermissionRequestHandler((wc, permission, callback, details) => {
+    const mediaTypes = 'mediaTypes' in details ? (details.mediaTypes ?? []) : []
+    const audioOnly = permission === 'media' && mediaTypes.length > 0 && mediaTypes.every((t) => t === 'audio')
+    callback(audioOnly && windows.roleOf(wc.id) === 'console')
+  })
+  session.defaultSession.setPermissionCheckHandler((wc, permission) => permission === 'media' && wc !== null && windows.roleOf(wc.id) === 'console')
+
   windows.start()
 
   app.on('before-quit', () => {
     stateStore.flush()
     serviceStore.flush()
+    sidecar.stop()
     library.close()
     bibles.close()
   })

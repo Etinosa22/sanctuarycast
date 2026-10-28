@@ -43,6 +43,18 @@ const api: ScApi = {
     addColour: (colour) => ipcRenderer.invoke('backgrounds:addColour', colour),
     remove: (id) => ipcRenderer.invoke('backgrounds:remove', id)
   },
+  ai: {
+    status: () => ipcRenderer.invoke('ai:status'),
+    start: () => ipcRenderer.invoke('ai:start'),
+    stop: () => ipcRenderer.invoke('ai:stop'),
+    sendAudio: (pcm) => ipcRenderer.send('ai:audio', pcm),
+    testText: (text) => ipcRenderer.invoke('ai:testText', text),
+    onEvent: (cb) => {
+      const listener = (_e: Electron.IpcRendererEvent, ev: Parameters<typeof cb>[0]) => cb(ev)
+      ipcRenderer.on('ai:event', listener)
+      return () => ipcRenderer.removeListener('ai:event', listener)
+    }
+  },
   themes: {
     list: () => ipcRenderer.invoke('themes:list'),
     save: (name, theme) => ipcRenderer.invoke('themes:save', name, theme),

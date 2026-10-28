@@ -10,6 +10,7 @@ import { freshCopy, type Selection } from './selection'
 import { SlideStrip } from './SlideStrip'
 import { SongEditor } from './SongEditor'
 import { TopBar } from './TopBar'
+import { useListening } from './useListening'
 import { useTranslations } from './useTranslations'
 import { Icon } from './icons'
 import { isTyping, send, sendService } from './ui'
@@ -144,6 +145,7 @@ export function ConsoleView() {
   const [bibleHistory, setBibleHistory] = useState<ServiceItem[]>([])
   const searchRef = useRef<HTMLInputElement>(null)
   const translations = useTranslations()
+  const listening = useListening()
 
   // Open on the service item that is Live (e.g. after a crash), else Preview, else the first.
   useEffect(() => {
@@ -296,7 +298,7 @@ export function ConsoleView() {
             onSwitchTranslation={(code) => void switchTranslation(code)}
           />
         </main>
-        <RightPanel state={state} />
+        <RightPanel state={state} listening={listening} onApprove={(item) => (openPassage(item), setTab('word'))} />
       </div>
       <StatusBar />
       {editing && (

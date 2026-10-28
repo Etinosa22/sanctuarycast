@@ -1,0 +1,43 @@
+# Windows installer for SanctuaryCast. Build with: npm run dist
+appId: org.sanctuarycast.app
+productName: SanctuaryCast
+copyright: Copyright © 2026 SanctuaryCast
+
+directories:
+  output: dist
+  buildResources: build
+
+# Only the compiled app goes in; sources, tests and scripts stay out.
+files:
+  - out/**
+  - package.json
+
+# Public-domain Bibles ship next to the app (read via process.resourcesPath).
+# Licensed translations are never bundled; churches import them in the app.
+extraResources:
+  - from: resources/bibles
+    to: bibles
+    filter:
+      - '*.sqlite'
+  # Offline speech engine (whisper.cpp + base.en model), fetched by scripts/fetch-whisper.mjs.
+  - from: resources/ai
+    to: ai
+
+asar: true
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: build/icon.png
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: SanctuaryCast
+  # Keep the church's songs, backgrounds and settings if the app is uninstalled.
+  deleteAppDataOnUninstall: false
+  artifactName: SanctuaryCast-Setup-${version}.${ext}

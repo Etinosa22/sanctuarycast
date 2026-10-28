@@ -1,33 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
-import type { Background, LibraryBackground, PresentationState, SavedTheme, Theme } from '../../../shared/types'
+import type { Background, LibraryBackground, PresentationState, SavedTheme, ServiceItem, Theme } from '../../../shared/types'
 import { BackgroundLayer } from '../components/SlideCanvas'
+import { AiPanel } from './AiPanel'
 import { ThemeEditor } from './ThemeEditor'
 import { Icon } from './icons'
 import { ControlButton, LinkButton, PanelTitle, send } from './ui'
-
-function SuggestionFeed() {
-  return (
-    <section className="flex min-h-0 flex-1 flex-col">
-      <PanelTitle
-        icon="sparkles"
-        right={
-          <span className="inline-flex items-center gap-1 rounded-full bg-neutral-800/80 px-2 py-px text-[10px] text-neutral-400 ring-1 ring-white/5">
-            <span className="h-1.5 w-1.5 rounded-full bg-neutral-500" />
-            Listening off
-          </span>
-        }
-      >
-        Scripture suggestions
-      </PanelTitle>
-      {/* Shrinks and scrolls on short laptop screens instead of running into Live control. */}
-      <div className="mx-3 flex min-h-0 flex-1 flex-col items-center justify-center-safe overflow-y-auto rounded-xl border border-dashed border-accent-400/20 bg-accent-500/[0.04] p-3 text-center text-sm text-neutral-400">
-        <p>When the preacher mentions a verse, a card appears here.</p>
-        <p className="mt-2">Approve it to put it in Preview. Nothing goes Live without you.</p>
-        <p className="mt-3 text-[11px] text-neutral-600">Speech detection is Phase 2.</p>
-      </div>
-    </section>
-  )
-}
+import type { Listening } from './useListening'
 
 function LiveControls({ state }: { state: PresentationState }) {
   return (
@@ -163,7 +141,7 @@ function BackgroundBar({ state }: { state: PresentationState }) {
       >
         Background
       </PanelTitle>
-      <div className="grid max-h-44 grid-cols-3 gap-2 overflow-y-auto px-3 py-1">
+      <div className="grid max-h-32 grid-cols-3 gap-2 overflow-y-auto px-3 py-1">
         {items.map((b) => (
           <div key={b.id} className="group relative">
             <button
@@ -195,10 +173,10 @@ function BackgroundBar({ state }: { state: PresentationState }) {
   )
 }
 
-export function RightPanel({ state }: { state: PresentationState }) {
+export function RightPanel({ state, listening, onApprove }: { state: PresentationState; listening: Listening; onApprove: (item: ServiceItem) => void }) {
   return (
-    <aside className="panel flex w-72 shrink-0 flex-col gap-1 border-y-0 border-r-0">
-      <SuggestionFeed />
+    <aside className="panel flex w-72 shrink-0 flex-col gap-1 overflow-y-auto border-y-0 border-r-0">
+      <AiPanel l={listening} onApprove={onApprove} />
       <LiveControls state={state} />
       <ThemeBar state={state} />
       <BackgroundBar state={state} />

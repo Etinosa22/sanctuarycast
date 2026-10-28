@@ -90,6 +90,30 @@ export interface TranslationSettings {
   enabled: string[]
 }
 
+export interface AiStatus {
+  state: 'missing' | 'stopped' | 'starting' | 'ready' | 'error'
+  message: string
+}
+
+/** A reference the detector heard. Approving it puts it in Preview; it never touches Live. */
+export interface AiSuggestion {
+  key: string
+  item: ServiceItem
+  confidence: 'high' | 'medium'
+  /** 'context' when only "verse 8" was said and the chapter came from before. */
+  source: 'explicit' | 'context'
+  heard: string
+  at: number
+  /** 'speech' from the microphone, 'typed' from the test box. */
+  origin: 'speech' | 'typed'
+  replaces?: string
+}
+
+export type AiEvent =
+  | { type: 'status'; status: AiStatus }
+  | { type: 'transcript'; text: string; ms: number }
+  | { type: 'suggestion'; suggestion: AiSuggestion }
+
 export interface BibleSearchResult {
   /** Set when the query is a reference like "John 5:10". */
   passage: ServiceItem | null
@@ -223,5 +247,16 @@ export interface ScApi {
     list(): Promise<SavedTheme[]>
     save(name: string, theme: Theme): Promise<SavedTheme>
     remove(id: string): Promise<void>
+  }
+  /** Scripture detection, console only. */
+  ai: {
+    status(): Promise<AiStatus>
+    start(): Promise<AiStatus>
+    stop(): Promise<AiStatus>
+    /** 16 kHz mono 16-bit PCM, a few seconds at a time. */
+    sendAudio(pcm: ArrayBuffer): void
+    /** Runs the detector on typed or pasted sermon text, as if it had been heard. */
+    testText(text: string): Promise<number>
+    onEvent(cb: (e: AiEvent) => void): () => void
   }
 }

@@ -6,7 +6,7 @@ import { formatReference, parseReference } from '../parser/reference'
 import type { BibleSearchResult, LibraryBackground, PresentationState, TranslationSettings } from '../shared/types'
 import { importMediaFile, IMAGE_EXTENSIONS, removeMediaFile, STARTER_BACKGROUNDS, VIDEO_EXTENSIONS } from './backgrounds'
 import { BibleLibrary, isTranslationCode } from './bible/bibleLibrary'
-import { passageToItem } from './bible/passage'
+import { passageItem, translationSettings } from './bible/lookup'
 import { Library } from './db/library'
 import { isSafeColour, isSongInput, isTheme } from './engine/validate'
 import { STARTER_THEMES } from './themes'
@@ -30,7 +30,7 @@ export function registerLibraryIpc({ bibles, library, mediaDir, engineState, con
       return fn(win, ...(args as A))
     })
 
-  const settings = () => bibles.normalise(library.getSetting<TranslationSettings>('bible.translations'))
+  const settings = () => translationSettings(bibles, library)
   const translationsView = () => {
     const s = settings()
     return { translations: bibles.list().map((t) => ({ ...t, enabled: s.enabled.includes(t.code) })), main: s.main }
@@ -42,9 +42,7 @@ export function registerLibraryIpc({ bibles, library, mediaDir, engineState, con
     const bible = bibles.get(code)!
     const ref = parseReference(q)
     if (ref) {
-      const verses = bible.passage(ref)
-      const id = `bible-${code}-${formatReference(ref).replace(/\W+/g, '-')}`
-      return { passage: passageToItem(verses, engineState().theme, code, id), hits: [], translation: code }
+      return { passage: passageItem(bibles, code, ref, engineState().theme), hits: [], translation: code }
     }
     const hits = q.trim().length >= 3 ? bible.search(q, 15) : []
     return {

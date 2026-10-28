@@ -1,0 +1,184 @@
+import { useState } from 'react'
+import type { ServiceItem } from '../../../shared/types'
+import { Icon } from './icons'
+import { PanelTitle } from './ui'
+import type { Listening } from './useListening'
+
+function LevelMeter({ level, active }: { level: number; active: boolean }) {
+  // Green is comfortable speech; red means the input is clipping.
+  const colour = level > 0.85 ? 'bg-rose-500' : level > 0.15 ? 'bg-emerald-400' : 'bg-amber-400'
+  return (
+    <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-neutral-950/80 ring-1 ring-white/5" title="Input level">
+      <div className={`h-full rounded-full transition-[width] duration-75 ${active ? colour : 'bg-neutral-700'}`} style={{ width: `${Math.round((active ? level : 0) * 100)}%` }} />
+    </div>
+  )
+}
+
+const ago = (t: number) => {
+  const s = Math.round((Date.now() - t) / 1000)
+  return s < 60 ? `${s}s ago` : `${Math.round(s / 60)}m ago`
+}
+
+/** Scripture suggestions: pick the input, listen, approve detected verses into Preview. */
+export function AiPanel({ l, onApprove }: { l: Listening; onApprove: (item: ServiceItem) => void }) {
+  const [typing, setTyping] = useState(false)
+  const [text, setText] = useState('')
+  const [typedResult, setTypedResult] = useState('')
+
+  const engineMissing = l.status.state === 'missing'
+  const statusDot =
+    l.mode === 'listen' && l.status.state === 'ready'
+      ? 'live-dot bg-rose-500'
+      : l.status.state === 'starting'
+        ? 'bg-amber-400'
+        : l.status.state === 'error' || engineMissing
+          ? 'bg-rose-600'
+          : 'bg-neutral-500'
+  const statusText =
+    l.mode === 'listen'
+      ? l.status.state === 'ready'
+        ? 'Listening'
+        : l.status.state === 'starting'
+          ? 'Loading…'
+          : 'Not ready'
+      : l.mode === 'test'
+        ? 'Mic test'
+        : 'Listening off'
+
+  const runTyped = async () => {
+    const n = await l.testText(text)
+    setTypedResult(n ? `${n} reference${n === 1 ? '' : 's'} found` : 'No reference found in that text')
+  }
+
+  return (
+    <section className="flex flex-1 flex-col">
+      <PanelTitle
+        icon="sparkles"
+        right={
+          <span className="inline-flex items-center gap-1 rounded-full bg-neutral-800/80 px-2 py-px text-[10px] text-neutral-300 ring-1 ring-white/5">
+            <span className={`h-1.5 w-1.5 rounded-full ${statusDot}`} />
+            {statusText}
+          </span>
+        }
+      >
+        Scripture suggestions
+      </PanelTitle>
+
+      {/* Audio input */}
+      <div className="mx-3 space-y-1.5 rounded-xl bg-neutral-950/50 p-2 ring-1 ring-white/5">
+        <div className="flex gap-1.5">
+          <select
+            value={l.deviceId}
+            onChange={(e) => l.setDeviceId(e.target.value)}
+            title="Audio input: the preacher's microphone or a feed from the mixer"
+            className="field min-w-0 flex-1 py-1 text-xs"
+          >
+            <option value="">Default input</option>
+            {l.devices.map((d, i) => (
+              <option key={d.deviceId || i} value={d.deviceId}>
+                {d.label || `Input ${i + 1}`}
+              </option>
+            ))}
+          </select>
+          {l.mode === 'off' ? (
+            <>
+              <button onClick={() => void l.test()} className="rounded-lg bg-neutral-800/80 px-2 text-xs text-neutral-200 ring-1 ring-white/5 hover:bg-neutral-700" title="Check the level without listening">
+                Test mic
+              </button>
+              <button
+                onClick={() => void l.listen()}
+                disabled={engineMissing}
+                className="btn-accent rounded-lg px-2.5 text-xs font-semibold"
+                title={engineMissing ? l.status.message : 'Start listening for scripture'}
+              >
+                Listen
+              </button>
+            </>
+          ) : (
+            <button onClick={l.stop} className="rounded-lg bg-rose-600/90 px-2.5 text-xs font-semibold text-white hover:bg-rose-500">
+              Stop
+            </button>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <Icon name="sparkles" size={12} className={l.mode !== 'off' ? 'text-emerald-400' : 'text-neutral-600'} />
+          <LevelMeter level={l.level} active={l.mode !== 'off'} />
+        </div>
+        {(l.error || engineMissing || l.status.state === 'error') && <p className="text-[11px] text-rose-300">{l.error || l.status.message}</p>}
+        {l.mode === 'listen' && l.lastHeard && (
+          <p className="line-clamp-2 text-[11px] text-neutral-400" title={l.lastHeard.text}>
+            <span className="text-neutral-500">Heard {ago(l.lastHeard.at)} ({(l.lastHeard.ms / 1000).toFixed(1)} s):</span> “{l.lastHeard.text}”
+          </p>
+        )}
+      </div>
+
+      {/* Suggestion cards */}
+      {/* Always leave room for at least one card, even on short screens. */}
+      <div className="mt-2 min-h-28 flex-1 space-y-1.5 overflow-y-auto px-3">
+        {l.suggestions.map((s) => (
+          <div
+            key={s.key}
+            data-suggestion={s.key}
+            className={`group rounded-xl border p-2 transition ${s.used ? 'border-white/5 bg-neutral-900/40 opacity-60' : 'border-accent-400/25 bg-accent-500/[0.07]'}`}
+          >
+            <div className="flex items-start gap-2">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5 text-sm font-semibold">
+                  {s.item.title}
+                  {s.source === 'context' && <span className="rounded bg-neutral-800 px-1 text-[9px] font-medium text-neutral-400">from context</span>}
+                  {s.origin === 'typed' && <span className="rounded bg-neutral-800 px-1 text-[9px] font-medium text-neutral-400">typed</span>}
+                </div>
+                <div className="line-clamp-2 text-[11px] text-neutral-400">{s.item.slides[0]?.text}</div>
+                <div className="mt-0.5 truncate text-[10px] text-neutral-500" title={s.heard}>
+                  heard “{s.heard}” · {ago(s.at)}
+                </div>
+              </div>
+              <button onClick={() => l.dismiss(s.key)} title="Dismiss" className="rounded-md p-0.5 text-neutral-500 hover:bg-white/5 hover:text-white">
+                <Icon name="x" size={12} />
+              </button>
+            </div>
+            <button
+              onClick={() => (onApprove(s.item), l.markUsed(s.key))}
+              className="mt-1.5 w-full rounded-lg bg-amber-400/15 py-1 text-xs font-semibold text-amber-200 ring-1 ring-amber-400/30 transition hover:bg-amber-400/25"
+            >
+              {s.used ? 'Sent to Preview · send again' : 'Show in Preview'}
+            </button>
+          </div>
+        ))}
+        {l.suggestions.length === 0 && (
+          <div className="rounded-xl border border-dashed border-accent-400/20 p-3 text-center text-xs text-neutral-400">
+            {l.mode === 'listen' ? 'Listening. When the preacher mentions a verse, a card appears here.' : 'Choose the input and press Listen. Cards go to Preview only when you approve them.'}
+          </div>
+        )}
+      </div>
+
+      {/* Test without a preacher */}
+      <div className="px-3 pt-1.5">
+        {typing ? (
+          <div className="space-y-1.5 rounded-xl bg-neutral-950/50 p-2 ring-1 ring-white/5">
+            <textarea
+              autoFocus
+              value={text}
+              onChange={(e) => (setText(e.target.value), setTypedResult(''))}
+              placeholder='Type what a preacher might say, e.g. "turn with me to Romans chapter eight verse twenty eight"'
+              className="field h-14 w-full resize-none text-xs"
+            />
+            <div className="flex items-center gap-2">
+              <button onClick={() => void runTyped()} disabled={!text.trim()} className="btn-accent rounded-lg px-2.5 py-1 text-xs font-semibold">
+                Detect
+              </button>
+              <span className="flex-1 text-[11px] text-neutral-500">{typedResult}</span>
+              <button onClick={() => setTyping(false)} className="text-[11px] text-neutral-500 hover:text-neutral-300">
+                Close
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button onClick={() => setTyping(true)} className="text-[11px] text-accent-300 hover:text-accent-200">
+            Test with typed words…
+          </button>
+        )}
+      </div>
+    </section>
+  )
+}

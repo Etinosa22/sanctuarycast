@@ -8,6 +8,89 @@ Phase 1, Steps 1–8 done. Still open in Phase 1:
 
 The Phase 1 demo is ready to show the church.
 
+## 2026-10-28 — Phase 2: scripture detection from the PC's microphone
+Requested: the AI voice detector had never been tested; add a section to choose and check the audio input. Audio comes from this PC's own microphones/inputs (asked and answered).
+
+Decisions (asked and answered):
+- Download whisper.cpp b5454 (`whisper-bin-x64.zip`, 8.9 MB) and `ggml-base.en-q5_1.bin` (59.7 MB) and bundle them.
+  - Kept out of git (`resources/ai/` in `.gitignore`); `node scripts/fetch-whisper.mjs` downloads them again with SHA-256 checks. The model hash matches Hugging Face's published one.
+- Audio source: this PC's microphones and inputs (not system playback, not Windows speech recognition).
+
+Built:
+- **Spoken-reference parser** (`src/parser/spoken.ts`, pure):
+  - Whisper output: "John 3:16", "Philippians 4-13", "Romans 8, 28", "Romans 828", "1 Corinthians 13 verses 4 to 7".
+  - Spoken words: "John three sixteen", "first Corinthians thirteen four", "psalm one hundred and nineteen verse one hundred and five".
+  - Context: "verse eight", "go down to verse twelve", and "chapter five verse three" without a book, using the current chapter or the passage on Live.
+  - Guards: everyday-word books (Mark, Job, Acts, Numbers…) need "chapter"/"verse" or a colon; a "13 verses 4 to 7" whose book was cut off is ignored.
+- **Detector** (`src/ai/detector.ts`, pure):
+  - De-duplicates across the overlapping chunks.
+  - Holds a reference heard at the very end of a chunk until the next chunk confirms it, so a cut "twenty-eight" can't become 8:20.
+  - Collapses whisper's repetition loops.
+  - A verse card replaces its chapter card.
+- **Speech engine** (`src/ai/whisperSidecar.ts`):
+  - `whisper-server` runs as its own process on 127.0.0.1 only (random port), with the model loaded once, so it can't stall slides.
+  - Restarts if it crashes; starts only when you press Listen.
+  - Settings `-t 4 -ac 384 -mc 0 -sns`, chosen by measurement (see below).
+- **Main** (`src/main/ai.ts`):
+  - Console-only IPC with validation.
+  - One transcription at a time, keeping only the newest audio, so a slow laptop drops old audio instead of falling behind.
+  - "Current chapter" follows the scripture on Live.
+  - Microphone permission is granted only to the console window, audio only; every other permission request is refused.
+- **Console → Scripture suggestions:**
+  - Input picker listing the PC's real inputs (remembered), **Test mic** with a level meter, **Listen / Stop**, status pill, and the last thing heard with its transcription time.
+  - Cards with "Show in Preview" (never Live) and dismiss.
+  - **Test with typed words…** runs the detector on typed sermon text.
+- **Capture** (`useListening.ts`): 16 kHz mono, a circular buffer, the last 5 s sent every 2 s, silent chunks skipped, level meter at about 15 fps.
+- The installer now ships the engine: `dist\SanctuaryCast-Setup-0.1.0.exe` is 177 MB.
+
+### Measurements (dev PC, 4 threads; re-measure on the target i7 5th gen)
+- 15 s of test speech in one go: 14.8 s with the default 30 s window. Far too slow, hence 5 s chunks and a kept-loaded server.
+- 5 s chunk on the kept-loaded server: `-ac 384` 2.2–2.5 s; `-ac 256` 1.3–2.0 s but made whisper loop for up to 37 s on repeated phrases, so 384 it is.
+- Expected time from a reference being spoken to its card: about 3–5 s on the dev PC (up to 2 s waiting for the next chunk, plus about 2.2 s transcription, plus up to 2 s more if the reference is held for confirmation). **Above the 2–3 s target**, and the target laptop will be slower. To measure in Phase 2 testing: shorter step (1.5 s), the smaller `tiny.en` model, or confirming on punctuation instead of the next chunk.
+
+### Tests and checks
+- 235 unit tests passing:
+  - spoken parser (whisper formats, number words, context, run-together numbers, false alarms)
+  - detector (repeats, edge-of-chunk holding, loops, chapter→verse replacement)
+  - WAV encoder
+  - **real end to end:** the bundled whisper engine transcribes a recorded "Philippians four thirteen" and the detector suggests Philippians 4:13
+- **Fake microphone (the test sermon played in as the mic):**
+  - Cards for John 3:16, John 3:18 ("go down to verse 18", from context), Romans 8:28 and 1 Corinthians 13:4–7.
+  - "Show in Preview" put John 3:16 in Preview; Live was unchanged.
+- **Real microphone on this PC:**
+  - Inputs listed: Microphone Array (Realtek), Bluetooth headset (oraimo BoomPop Lite).
+  - The level meter moved, and room speech was transcribed at 2–5 s per chunk.
+  - The test sermon went to the headset, so the mic never heard a reference. **Still to do: speak references into the real mic and check the cards.**
+- Packaged app: the engine starts ("Listening engine ready") and detection works.
+
+### Open issues
+- Latency is above target (see above). The Phase 2 gate (90% of references on recorded sermons, measured on the target laptop) is not run yet.
+- Detection log (DetectionLog in the spec) and auto mode (admin, off by default) are not built.
+- One early test run stopped listening by itself and it did not happen again in three later runs. Watch for it.
+- On 1366×768 the right column scrolls slightly to reach Theme/Background.
+- Whisper binaries are Windows-only; macOS needs its own build.
+
+## 2026-10-28 — Windows installer
+Requested: an executable that can be installed on other computers.
+
+- **Build:** `npm run dist` produces `dist\SanctuaryCast-Setup-0.1.0.exe` (120.8 MB, 64-bit Windows 10/11).
+  - The installer wizard lets you choose the install folder, and adds desktop and Start-menu shortcuts.
+  - Per-user install, no admin rights needed.
+- **Config:** `electron-builder.yml`.
+  - Only `out/` (compiled app) and `package.json` go into `app.asar`.
+  - `resources/bibles/*.sqlite` (KJV, ASV) ship as `resources\bibles` next to it.
+  - React moved to devDependencies (Vite already bundles it), so the app archive went from 8.8 MB to 0.7 MB.
+- **Icon:** `build/icon.png` (512×512), rendered from the logo with `npm run icon` (`scripts/make-icon.cjs`).
+- **Data:** each computer keeps its own songs, backgrounds, themes and settings in `%APPDATA%\SanctuaryCast`. Uninstalling keeps that data (`deleteAppDataOnUninstall: false`).
+- **Not code-signed** (no certificate). Windows SmartScreen will warn on first run: click **More info → Run anyway**. A code-signing certificate would remove the warning.
+- **macOS** needs to be built on a Mac (`electron-builder --mac`); not done.
+- **Checked in the packaged app:**
+  - All windows load from `app.asar`.
+  - Both Bibles load from `resources\bibles`; songs and backgrounds load.
+  - John 3:16 sent from Preview reached the projector.
+  - On a second display at 300% scaling, the projector window was full screen (1280×720 CSS px) with the slide scaled to fit.
+- **Not checked:** running the installer itself on this PC (it would install a second copy here). Test it on another PC or a spare Windows account.
+
 ## 2026-10-28 — Midnight redesign and background persistence fix
 Requested: a more beautiful, modern UI; uploaded images must stay after the app closes.
 
@@ -258,7 +341,7 @@ Built:
 - Demo Phase 1 to the church, then measure slide switch and memory on the target i7-5th-gen laptop.
 - Spec items not yet built: separate default theme and background for songs, scripture and announcements, and per-item overrides; song import from other programs; installer (electron-builder, shipping `resources/bibles`).
 - Phase 2 (AI detection) starts after the Phase 1 demo, per CLAUDE.md.
-- Packaging must ship `resources/bibles` via electron-builder `extraResources`.
+- Windows installer done (`npm run dist`); macOS build and code signing still to do.
 
 ## Open issues
 - **KJV source text quality.** The scrollmapper KJV.csv:
