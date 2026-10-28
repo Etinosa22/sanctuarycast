@@ -8,6 +8,51 @@ Phase 1, Steps 1–8 done. Still open in Phase 1:
 
 The Phase 1 demo is ready to show the church.
 
+## 2026-10-28 — Recited verses, Auto Preview and Auto Live
+Requested:
+- Detect a verse when the preacher recites it without the reference.
+- Search for it and show it in Preview for review.
+- An option to show found passages on Preview and Live automatically.
+
+Decision (CLAUDE.md updated): three modes.
+- **Suggest:** cards only.
+- **Auto Preview** (default): passages go to Preview.
+- **Auto Live** (off unless turned on, with a confirmation).
+
+Built:
+- **Recited-verse matcher** (`src/ai/quotes.ts`, pure):
+  - Content words from the transcript feed a full-text search across every ticked translation.
+  - Candidates are scored by the longest run of words said in the verse's own order. Light stemming ("believes" = "believeth") and old forms ("you" = "ye/thee", "to" = "unto") are handled.
+  - A run of at least 6 words with at least 3 content words is needed, so ordinary speech ("in the name of Jesus we pray amen") doesn't match.
+  - High confidence: 8+ words, or 60%+ of the verse.
+  - It runs only when no reference was said in that chunk, and sets the chapter context, so a later "verse 17" works.
+- **Auto rules** (`src/ai/auto.ts`, pure):
+  - Auto Preview never replaces something the operator staged and hasn't sent; in that case you get a card only.
+  - Auto Live acts only on a clearly said reference or a high-confidence quote; context-only ("verse six") and medium matches go to Preview.
+  - The rules are applied in the main process through the presentation engine, so Live still changes only by Preview → Go Live.
+- **Panel:**
+  - Suggest / Auto Preview / Auto Live switch, saved in the library; Auto Live is red and asks for confirmation.
+  - Cards show "recited", "Put in Preview automatically" and "Sent to Preview and Live automatically".
+  - When the detector shows a passage by itself, the slide strip opens it.
+
+### Tests and checks
+- 263 unit tests passing, including:
+  - 18 quote tests against the real KJV and ASV (8 famous verses, modernised wording, 6 ordinary sentences correctly ignored)
+  - 10 auto-rule tests through the real engine
+- Checked in the running app with typed sermon text:
+  - A recited John 3:16 went to Preview automatically.
+  - An operator-staged song was not replaced.
+  - Suggest mode gave a card only.
+  - Auto Live asked for confirmation: Cancel kept the mode, OK saved it.
+  - "Ephesians chapter two verse eight" and a recited Proverbs 3:5 went to Preview and Live.
+  - "verse six" went to Preview only.
+- Not yet tried with live speech (same code path as typed text, after whisper).
+
+### Open issues
+- A quote spanning two verses (e.g. Numbers 6:24–25) picks the verse with the longer match; showing the range would be better.
+- Very short verses ("Jesus wept") can't be recognised from words alone; under 6 words is indistinguishable from ordinary speech.
+- Paraphrases (e.g. a modern translation that isn't installed) won't match.
+
 ## 2026-10-28 — Phase 2: scripture detection from the PC's microphone
 Requested: the AI voice detector had never been tested; add a section to choose and check the audio input. Audio comes from this PC's own microphones/inputs (asked and answered).
 

@@ -58,6 +58,15 @@ export class ReferenceDetector {
     this.context = ctx
   }
 
+  /** For suggestions found another way (recited verses): true the first time a key is seen in the repeat window. */
+  claim(key: string): boolean {
+    const now = this.clock()
+    const seen = this.recent.get(key)
+    if (seen !== undefined && now - seen <= this.repeatWindowMs) return false
+    this.recent.set(key, now)
+    return true
+  }
+
   reset(): void {
     this.context = null
     this.recent.clear()

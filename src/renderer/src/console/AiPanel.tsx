@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { ServiceItem } from '../../../shared/types'
+import type { AiMode, ServiceItem } from '../../../shared/types'
 import { Icon } from './icons'
 import { PanelTitle } from './ui'
 import type { Listening } from './useListening'
@@ -10,6 +10,48 @@ function LevelMeter({ level, active }: { level: number; active: boolean }) {
   return (
     <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-neutral-950/80 ring-1 ring-white/5" title="Input level">
       <div className={`h-full rounded-full transition-[width] duration-75 ${active ? colour : 'bg-neutral-700'}`} style={{ width: `${Math.round((active ? level : 0) * 100)}%` }} />
+    </div>
+  )
+}
+
+const MODES: [AiMode, string, string][] = [
+  ['suggest', 'Suggest', 'Cards only: you send each verse to Preview yourself'],
+  ['preview', 'Auto Preview', 'Found verses go straight to Preview for you to review (never Live)'],
+  ['live', 'Auto Live', 'Sure detections go to Preview AND the projector without asking']
+]
+
+function ModeSwitch({ mode, onChange }: { mode: AiMode; onChange: (m: AiMode) => void }) {
+  const pick = (m: AiMode) => {
+    if (m === mode) return
+    if (
+      m === 'live' &&
+      !window.confirm(
+        'Turn on Auto Live?\n\nWhen the preacher clearly says a reference or recites a verse word for word, it will go on the projector straight away without your approval. Less certain detections still go to Preview only.\n\nKeep a hand on Blank (B) in case it gets one wrong.'
+      )
+    )
+      return
+    onChange(m)
+  }
+  return (
+    <div className="flex gap-0.5 rounded-lg bg-neutral-950/70 p-0.5 ring-1 ring-white/5" role="radiogroup" aria-label="What to do with detected verses">
+      {MODES.map(([m, label, hint]) => (
+        <button
+          key={m}
+          role="radio"
+          aria-checked={mode === m}
+          title={hint}
+          onClick={() => pick(m)}
+          className={`flex-1 rounded-md py-1 text-[11px] font-semibold transition ${
+            mode === m
+              ? m === 'live'
+                ? 'bg-gradient-to-br from-rose-500 to-red-700 text-white shadow-[0_0_12px_-2px_rgb(244_63_94/0.7)]'
+                : 'bg-accent-600 text-white'
+              : 'text-neutral-400 hover:bg-white/5 hover:text-neutral-200'
+          }`}
+        >
+          {label}
+        </button>
+      ))}
     </div>
   )
 }
@@ -104,6 +146,7 @@ export function AiPanel({ l, onApprove }: { l: Listening; onApprove: (item: Serv
           <Icon name="sparkles" size={12} className={l.mode !== 'off' ? 'text-emerald-400' : 'text-neutral-600'} />
           <LevelMeter level={l.level} active={l.mode !== 'off'} />
         </div>
+        <ModeSwitch mode={l.aiMode} onChange={(m) => void l.setAiMode(m)} />
         {(l.error || engineMissing || l.status.state === 'error') && <p className="text-[11px] text-rose-300">{l.error || l.status.message}</p>}
         {l.mode === 'listen' && l.lastHeard && (
           <p className="line-clamp-2 text-[11px] text-neutral-400" title={l.lastHeard.text}>
@@ -126,8 +169,18 @@ export function AiPanel({ l, onApprove }: { l: Listening; onApprove: (item: Serv
                 <div className="flex items-center gap-1.5 text-sm font-semibold">
                   {s.item.title}
                   {s.source === 'context' && <span className="rounded bg-neutral-800 px-1 text-[9px] font-medium text-neutral-400">from context</span>}
+                  {s.source === 'quote' && (
+                    <span className="rounded bg-sky-500/15 px-1 text-[9px] font-medium text-sky-300" title="Recognised from the words, no reference was said">
+                      recited
+                    </span>
+                  )}
                   {s.origin === 'typed' && <span className="rounded bg-neutral-800 px-1 text-[9px] font-medium text-neutral-400">typed</span>}
                 </div>
+                {s.auto && (
+                  <div className={`mt-0.5 text-[10px] font-semibold ${s.auto === 'live' ? 'text-rose-300' : 'text-amber-300'}`}>
+                    {s.auto === 'live' ? '● Sent to Preview and Live automatically' : '● Put in Preview automatically'}
+                  </div>
+                )}
                 <div className="line-clamp-2 text-[11px] text-neutral-400">{s.item.slides[0]?.text}</div>
                 <div className="mt-0.5 truncate text-[10px] text-neutral-500" title={s.heard}>
                   heard “{s.heard}” · {ago(s.at)}

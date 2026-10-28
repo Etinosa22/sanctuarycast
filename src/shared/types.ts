@@ -95,13 +95,21 @@ export interface AiStatus {
   message: string
 }
 
-/** A reference the detector heard. Approving it puts it in Preview; it never touches Live. */
+/**
+ * suggest: cards only. preview: found passages go to Preview for review.
+ * live: sure detections go to Preview and Live at once (off unless the operator turns it on).
+ */
+export type AiMode = 'suggest' | 'preview' | 'live'
+
+/** A reference the detector heard, or a verse it recognised from recited words. */
 export interface AiSuggestion {
   key: string
   item: ServiceItem
   confidence: 'high' | 'medium'
-  /** 'context' when only "verse 8" was said and the chapter came from before. */
-  source: 'explicit' | 'context'
+  /** 'context': only "verse 8" was said; 'quote': recognised from the verse's own words. */
+  source: 'explicit' | 'context' | 'quote'
+  /** What the detector did with it by itself, if anything. */
+  auto?: 'preview' | 'live'
   heard: string
   at: number
   /** 'speech' from the microphone, 'typed' from the test box. */
@@ -257,6 +265,8 @@ export interface ScApi {
     sendAudio(pcm: ArrayBuffer): void
     /** Runs the detector on typed or pasted sermon text, as if it had been heard. */
     testText(text: string): Promise<number>
+    getMode(): Promise<AiMode>
+    setMode(mode: AiMode): Promise<AiMode>
     onEvent(cb: (e: AiEvent) => void): () => void
   }
 }

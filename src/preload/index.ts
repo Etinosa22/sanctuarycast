@@ -49,6 +49,8 @@ const api: ScApi = {
     stop: () => ipcRenderer.invoke('ai:stop'),
     sendAudio: (pcm) => ipcRenderer.send('ai:audio', pcm),
     testText: (text) => ipcRenderer.invoke('ai:testText', text),
+    getMode: () => ipcRenderer.invoke('ai:getMode'),
+    setMode: (mode) => ipcRenderer.invoke('ai:setMode', mode),
     onEvent: (cb) => {
       const listener = (_e: Electron.IpcRendererEvent, ev: Parameters<typeof cb>[0]) => cb(ev)
       ipcRenderer.on('ai:event', listener)

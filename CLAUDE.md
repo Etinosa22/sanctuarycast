@@ -11,7 +11,10 @@ Full product spec: `docs/SPEC.md`. Read it before starting any phase. If the spe
 
 ## Non-negotiable behaviour
 - **Preview and Live.** Nothing reaches the projector until the operator sends it from Preview to Live (Go Live button, Enter, or double-click). Live is read-only; edits happen in Preview.
-- **AI never writes to Live.** Detected references land in the suggestion feed, then Preview on approval. Auto mode exists only as an admin setting, off by default.
+- **AI and Live.** Detected references (and verses recognised from recited words) land in the suggestion feed. Three modes, chosen by the operator (decided 2026-10-28):
+  - Suggest: cards only.
+  - Auto Preview (default): the passage goes to Preview for review, never replacing something the operator staged and hasn't sent.
+  - Auto Live: off unless the operator turns it on, with a confirmation. Only sure detections (a clearly said reference or a long exact quote) go to Preview and Live; everything else goes to Preview only.
 - **Presentation engine is the single source of truth** for what each output window shows. Output windows only render state they receive.
 - Slide switch under 100 ms. Auto-save every change; after a crash, reopen the service at the last Live slide.
 - Blank (B), clear text and logo screen work at any moment, even mid-transition.

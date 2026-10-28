@@ -4,7 +4,9 @@
 import { app, BrowserWindow, ipcMain, net, protocol, session } from 'electron'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { isAiMode } from '../ai/auto'
 import { ReferenceDetector } from '../ai/detector'
+import { bestQuoteMatch, searchWords } from '../ai/quotes'
 import { WhisperSidecar } from '../ai/whisperSidecar'
 import type { AiEvent, PresentationState, ServiceState, WindowRole } from '../shared/types'
 import { bookIdFromName } from '../parser/reference'
@@ -130,7 +132,23 @@ function start(): void {
     sidecar,
     detector: new ReferenceDetector(),
     lookup: (ref) => passageItem(bibles, translationSettings(bibles, library).main, ref, engine.state.theme),
+    // Recited verses: search every ticked translation, since a preacher may quote any of them.
+    quoteSearch: (text) => {
+      const words = searchWords(text)
+      if (words.length < 4) return null
+      const candidates = translationSettings(bibles, library).enabled.flatMap((code) => bibles.get(code)?.candidates(words) ?? [])
+      const m = bestQuoteMatch(text, candidates)
+      return m ? { ref: { book: m.candidate.book, chapter: m.candidate.chapter, verse: m.candidate.verse }, confidence: m.confidence, heard: m.heard } : null
+    },
     liveLabel: () => (engine.state.live?.slide.kind === 'scripture' ? engine.state.live.slide.label : undefined),
+    engineState: () => engine.state,
+    dispatch: (action) => engine.dispatch(action),
+    // Auto Preview is the default; Auto Live is never on unless the operator turns it on.
+    getMode: () => {
+      const m = library.getSetting<string>('ai.mode')
+      return isAiMode(m) ? m : 'preview'
+    },
+    setMode: (mode) => library.setSetting('ai.mode', mode),
     isConsole: (id) => windows.roleOf(id) === 'console',
     emit: emitAi
   })

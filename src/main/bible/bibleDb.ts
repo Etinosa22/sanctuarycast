@@ -61,6 +61,20 @@ export class BibleDb {
       .all(match, limit) as unknown as Verse[]
   }
 
+  /** Verses containing any of these words, best first: candidates for quote matching. */
+  candidates(words: string[], limit = 25): Verse[] {
+    const clean = words.map((w) => w.toLowerCase().replace(/[^a-z0-9]/g, '')).filter(Boolean)
+    if (clean.length === 0) return []
+    const match = clean.map((w) => `"${w}"`).join(' OR ')
+    return this.db
+      .prepare(
+        `SELECT v.book, v.chapter, v.verse, v.text FROM verses_fts f
+         JOIN verses v ON v.rowid = f.rowid
+         WHERE verses_fts MATCH ? ORDER BY rank LIMIT ?`
+      )
+      .all(match, limit) as unknown as Verse[]
+  }
+
   close(): void {
     this.db.close()
   }

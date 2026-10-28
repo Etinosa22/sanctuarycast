@@ -3,7 +3,7 @@
 // the speech engine in main. Suggestions come back here; nothing goes Live.
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { AiStatus, AiSuggestion } from '../../../shared/types'
+import type { AiMode, AiStatus, AiSuggestion } from '../../../shared/types'
 
 const TARGET_RATE = 16_000
 /** Send every 2 s the last 5 s of audio: overlap means no reference is cut in half. */
@@ -33,6 +33,9 @@ export interface Listening {
   markUsed: (key: string) => void
   clear: () => void
   testText: (text: string) => Promise<number>
+  /** What the detector may do by itself: cards only, Preview, or Preview and Live. */
+  aiMode: AiMode
+  setAiMode: (mode: AiMode) => Promise<void>
 }
 
 const readStored = () => {
@@ -43,7 +46,11 @@ const readStored = () => {
   }
 }
 
-export function useListening(): Listening {
+/** onAuto runs when the detector put a passage in Preview (or Live) by itself, so the console can show it. */
+export function useListening(onAuto?: (s: AiSuggestion) => void): Listening {
+  const onAutoRef = useRef(onAuto)
+  onAutoRef.current = onAuto
+  const [aiMode, setAiModeState] = useState<AiMode>('preview')
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([])
   const [deviceId, setDeviceIdState] = useState(readStored)
   const [mode, setMode] = useState<MicMode>('off')
@@ -69,11 +76,14 @@ export function useListening(): Listening {
     void refreshDevices()
     navigator.mediaDevices.addEventListener('devicechange', refreshDevices)
     void window.sc.ai.status().then(setStatus)
+    void window.sc.ai.getMode().then(setAiModeState)
     const off = window.sc.ai.onEvent((e) => {
       if (e.type === 'status') setStatus(e.status)
       else if (e.type === 'transcript') setLastHeard({ text: e.text, ms: e.ms, at: Date.now() })
-      else
+      else {
         setSuggestions((list) => [e.suggestion, ...list.filter((s) => s.key !== e.suggestion.key && s.key !== e.suggestion.replaces)].slice(0, 25))
+        if (e.suggestion.auto) onAutoRef.current?.(e.suggestion)
+      }
     })
     return () => {
       navigator.mediaDevices.removeEventListener('devicechange', refreshDevices)
@@ -227,6 +237,8 @@ export function useListening(): Listening {
     dismiss: (key) => setSuggestions((l) => l.filter((s) => s.key !== key)),
     markUsed: (key) => setSuggestions((l) => l.map((s) => (s.key === key ? { ...s, used: true } : s))),
     clear: () => setSuggestions([]),
-    testText: (text) => window.sc.ai.testText(text)
+    testText: (text) => window.sc.ai.testText(text),
+    aiMode,
+    setAiMode: async (mode) => setAiModeState(await window.sc.ai.setMode(mode))
   }
 }

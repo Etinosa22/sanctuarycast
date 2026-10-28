@@ -145,7 +145,8 @@ export function ConsoleView() {
   const [bibleHistory, setBibleHistory] = useState<ServiceItem[]>([])
   const searchRef = useRef<HTMLInputElement>(null)
   const translations = useTranslations()
-  const listening = useListening()
+  // When the detector shows a passage by itself, open it in the slide strip too.
+  const listening = useListening((s) => setSelection({ source: 'bible', item: s.item }))
 
   // Open on the service item that is Live (e.g. after a crash), else Preview, else the first.
   useEffect(() => {
