@@ -10,7 +10,8 @@ function SuggestionFeed() {
       <PanelTitle right={<span className="rounded bg-neutral-800 px-1.5 text-[11px] text-neutral-400">Listening off</span>}>
         Scripture suggestions
       </PanelTitle>
-      <div className="mx-3 flex flex-1 flex-col items-center justify-center rounded-md border border-dashed border-neutral-700 p-4 text-center text-sm text-neutral-500">
+      {/* Shrinks and scrolls on short laptop screens instead of running into Live control. */}
+      <div className="mx-3 flex min-h-0 flex-1 flex-col items-center justify-center-safe overflow-y-auto rounded-md border border-dashed border-neutral-700 p-3 text-center text-sm text-neutral-500">
         <p>When the preacher mentions a verse, a card appears here.</p>
         <p className="mt-2">Approve it to put it in Preview. Nothing goes Live without you.</p>
         <p className="mt-3 text-[11px] text-neutral-600">Speech detection is Phase 2.</p>

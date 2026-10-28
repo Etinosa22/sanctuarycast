@@ -5,8 +5,9 @@ import { app, BrowserWindow, ipcMain, net, protocol } from 'electron'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import type { PresentationState, ServiceState, WindowRole } from '../shared/types'
+import { bookIdFromName } from '../parser/reference'
 import { mediaPathFromUrl } from './backgrounds'
-import { BibleDb } from './bible/bibleDb'
+import { BibleLibrary } from './bible/bibleLibrary'
 import { Library } from './db/library'
 import { PresentationEngine, toOutputView, toStageView } from './engine/presentationEngine'
 import { hydrateService, hydrateState, isEngineAction, isServiceAction } from './engine/validate'
@@ -38,7 +39,7 @@ function start(): void {
     return path ? net.fetch(pathToFileURL(path).toString()) : new Response('Not found', { status: 404 })
   })
 
-  const bible = new BibleDb(resourcePath('bibles', 'kjv.sqlite'))
+  const bibles = new BibleLibrary(resourcePath('bibles'), join(dataDir, 'bibles'), bookIdFromName)
   const library = new Library(join(dataDir, 'library.sqlite'))
   library.seedOnce('starter-songs', () => demoSongs().forEach((s) => library.saveSong(s)))
   const stateStore = new JsonStore<PresentationState>(join(dataDir, 'session-state.json'), (raw) => hydrateState(raw, Date.now()))
@@ -107,7 +108,7 @@ function start(): void {
   ipcMain.handle('displays:get', () => windows.summary())
 
   registerLibraryIpc({
-    bible,
+    bibles,
     library,
     mediaDir,
     engineState: () => engine.state,
@@ -120,7 +121,7 @@ function start(): void {
     stateStore.flush()
     serviceStore.flush()
     library.close()
-    bible.close()
+    bibles.close()
   })
   app.on('window-all-closed', () => app.quit())
 }

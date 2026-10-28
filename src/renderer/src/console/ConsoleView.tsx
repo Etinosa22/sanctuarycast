@@ -10,6 +10,7 @@ import { freshCopy, type Selection } from './selection'
 import { SlideStrip } from './SlideStrip'
 import { SongEditor } from './SongEditor'
 import { TopBar } from './TopBar'
+import { useTranslations } from './useTranslations'
 import { isTyping, send, sendService } from './ui'
 
 /** Edits Preview text. Keeps a local draft so the cursor doesn't jump while IPC round-trips. */
@@ -120,6 +121,7 @@ export function ConsoleView() {
   const [songsVersion, setSongsVersion] = useState(0)
   const [bibleHistory, setBibleHistory] = useState<ServiceItem[]>([])
   const searchRef = useRef<HTMLInputElement>(null)
+  const translations = useTranslations()
 
   // Open on the service item that is Live (e.g. after a crash), else Preview, else the first.
   useEffect(() => {
@@ -223,6 +225,16 @@ export function ConsoleView() {
   const shown = selection?.source === 'service' ? service.items.find((i) => i.id === selection.itemId) : selection?.item
   latest.current = { state, service, shown }
 
+  /** Re-opens the shown passage in another translation; the slide in Preview follows, at the same position. */
+  const switchTranslation = async (code: string) => {
+    if (!shown?.scripture) return
+    const r = await window.sc.bible.search(shown.scripture.ref, code)
+    if (!r.passage) return
+    const at = shown.slides.findIndex((s) => s.id === state.preview?.slide.id)
+    openPassage(r.passage, false)
+    if (at >= 0) send({ type: 'stage', slide: r.passage.slides[Math.min(at, r.passage.slides.length - 1)] })
+  }
+
   return (
     <div className="flex h-screen flex-col bg-neutral-900 text-neutral-100">
       <TopBar
@@ -249,6 +261,7 @@ export function ConsoleView() {
           bibleHistory={bibleHistory}
           onOpenPassage={(item) => openPassage(item)}
           onSearchRef={(ref) => void openRef(ref)}
+          translations={translations}
         />
         <main className="flex min-w-0 flex-1 flex-col gap-4 p-4">
           <PreviewLive state={state} />
@@ -257,6 +270,8 @@ export function ConsoleView() {
             state={state}
             onAddToService={selection && selection.source !== 'service' ? addToService : undefined}
             onEditSong={selection?.source === 'song' ? () => setEditing({ songId: selection.songId }) : undefined}
+            translations={translations.enabled}
+            onSwitchTranslation={(code) => void switchTranslation(code)}
           />
         </main>
         <RightPanel state={state} />

@@ -3,9 +3,9 @@
 
 import { dialog, ipcMain, type BrowserWindow } from 'electron'
 import { formatReference, parseReference } from '../parser/reference'
-import type { BibleSearchResult, LibraryBackground, PresentationState } from '../shared/types'
+import type { BibleSearchResult, LibraryBackground, PresentationState, TranslationSettings } from '../shared/types'
 import { importMediaFile, IMAGE_EXTENSIONS, removeMediaFile, STARTER_BACKGROUNDS, VIDEO_EXTENSIONS } from './backgrounds'
-import { BibleDb } from './bible/bibleDb'
+import { BibleLibrary, isTranslationCode } from './bible/bibleLibrary'
 import { passageToItem } from './bible/passage'
 import { Library } from './db/library'
 import { isSafeColour, isSongInput, isTheme } from './engine/validate'
@@ -14,7 +14,7 @@ import { STARTER_THEMES } from './themes'
 const isStr = (v: unknown): v is string => typeof v === 'string'
 
 interface Deps {
-  bible: BibleDb
+  bibles: BibleLibrary
   library: Library
   mediaDir: string
   engineState: () => PresentationState
@@ -22,7 +22,7 @@ interface Deps {
   consoleFor: (senderId: number) => BrowserWindow | null
 }
 
-export function registerLibraryIpc({ bible, library, mediaDir, engineState, consoleFor }: Deps): void {
+export function registerLibraryIpc({ bibles, library, mediaDir, engineState, consoleFor }: Deps): void {
   const handle = <A extends unknown[], R>(channel: string, fn: (win: BrowserWindow, ...args: A) => R) =>
     ipcMain.handle(channel, (e, ...args) => {
       const win = consoleFor(e.sender.id)
@@ -30,21 +30,69 @@ export function registerLibraryIpc({ bible, library, mediaDir, engineState, cons
       return fn(win, ...(args as A))
     })
 
-  handle('bible:search', (_w, query: unknown): BibleSearchResult => {
+  const settings = () => bibles.normalise(library.getSetting<TranslationSettings>('bible.translations'))
+  const translationsView = () => {
+    const s = settings()
+    return { translations: bibles.list().map((t) => ({ ...t, enabled: s.enabled.includes(t.code) })), main: s.main }
+  }
+
+  handle('bible:search', (_w, query: unknown, translation: unknown): BibleSearchResult => {
     const q = isStr(query) ? query.slice(0, 200) : ''
-    const translation = bible.info.code
+    const code = isTranslationCode(translation) && bibles.get(translation) ? translation : settings().main
+    const bible = bibles.get(code)!
     const ref = parseReference(q)
     if (ref) {
       const verses = bible.passage(ref)
-      const id = `bible-${translation}-${formatReference(ref).replace(/\W+/g, '-')}`
-      return { passage: passageToItem(verses, engineState().theme, translation, id), hits: [], translation }
+      const id = `bible-${code}-${formatReference(ref).replace(/\W+/g, '-')}`
+      return { passage: passageToItem(verses, engineState().theme, code, id), hits: [], translation: code }
     }
     const hits = q.trim().length >= 3 ? bible.search(q, 15) : []
     return {
       passage: null,
       hits: hits.map((v) => ({ ref: formatReference({ book: v.book, chapter: v.chapter, verse: v.verse }), text: v.text })),
-      translation
+      translation: code
     }
+  })
+
+  handle('bible:translations', () => translationsView())
+
+  handle('bible:setTranslations', (_w, input: unknown) => {
+    const v = input as Partial<TranslationSettings> | null
+    if (!v || !isTranslationCode(v.main) || !Array.isArray(v.enabled) || !v.enabled.every(isTranslationCode)) {
+      throw new Error('Invalid translation settings')
+    }
+    library.setSetting('bible.translations', bibles.normalise({ main: v.main, enabled: v.enabled }))
+    return translationsView()
+  })
+
+  handle('bible:importTranslation', async (win, input: unknown) => {
+    const v = (input ?? {}) as { code?: unknown; name?: unknown; licenceConfirmed?: unknown }
+    const code = isStr(v.code) ? v.code.trim().toUpperCase() : ''
+    const name = isStr(v.name) ? v.name.trim().slice(0, 100) : ''
+    if (!isTranslationCode(code)) return { ok: false, message: 'Code must be 2–10 letters or digits, e.g. NIV' }
+    if (!name) return { ok: false, message: 'Give the translation its full name' }
+    // Copyrighted texts are only imported from a copy the church is licensed to project.
+    if (v.licenceConfirmed !== true) return { ok: false, message: 'Confirm the church holds a licence to project this translation' }
+    const picked = await dialog.showOpenDialog(win, {
+      title: `Import ${code}`,
+      properties: ['openFile'],
+      filters: [{ name: 'Bible text (CSV: Book,Chapter,Verse,Text) or SanctuaryCast SQLite', extensions: ['csv', 'sqlite', 'db'] }]
+    })
+    if (picked.canceled || !picked.filePaths[0]) return { ok: false, message: 'Import cancelled' }
+    try {
+      const count = bibles.importFile(picked.filePaths[0], code, name)
+      const s = settings()
+      library.setSetting('bible.translations', bibles.normalise({ ...s, enabled: [...s.enabled, code] }))
+      return { ok: true, message: `Imported ${count.toLocaleString()} verses of ${code}` }
+    } catch (err) {
+      return { ok: false, message: err instanceof Error ? err.message : String(err) }
+    }
+  })
+
+  handle('bible:removeTranslation', (_w, code: unknown) => {
+    if (!isTranslationCode(code)) return
+    bibles.remove(code)
+    library.setSetting('bible.translations', settings())
   })
 
   handle('songs:list', (_w, filter: unknown) => library.listSongs(isStr(filter) ? filter.slice(0, 200) : ''))

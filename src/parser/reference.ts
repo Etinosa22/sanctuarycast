@@ -78,3 +78,8 @@ export function formatReference(r: ScriptureRef): string {
 }
 
 export { BOOKS }
+
+/** Book id for a name as written in an imported file ("I Samuel", "1 Sam", "Revelation of John"), or null. */
+export function bookIdFromName(name: string): number | null {
+  return bookFrom(name.toLowerCase().replace(/\s+/g, ' ').trim())?.id ?? null
+}

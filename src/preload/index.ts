@@ -25,7 +25,11 @@ const api: ScApi = {
   openStage: () => ipcRenderer.invoke('windows:openStage'),
   reopenOutputs: () => ipcRenderer.invoke('windows:reopenOutputs'),
   bible: {
-    search: (query) => ipcRenderer.invoke('bible:search', query)
+    search: (query, translation) => ipcRenderer.invoke('bible:search', query, translation),
+    translations: () => ipcRenderer.invoke('bible:translations'),
+    setTranslations: (settings) => ipcRenderer.invoke('bible:setTranslations', settings),
+    importTranslation: (input) => ipcRenderer.invoke('bible:importTranslation', input),
+    removeTranslation: (code) => ipcRenderer.invoke('bible:removeTranslation', code)
   },
   songs: {
     list: (filter) => ipcRenderer.invoke('songs:list', filter),

@@ -24,7 +24,8 @@ Full product spec: `docs/SPEC.md`. Read it before starting any phase. If the spe
 - electron-builder for Windows (NSIS) and macOS installers.
 
 ## Bible translations
-- Bundle KJV only (public domain). Church wants NLT, NIV, TPT, NKJV, AMP too: these are copyrighted. Build an import/licensed-source interface for them, but never bundle or scrape their text. Use KJV for all development and tests.
+- Bundle public-domain translations only: KJV and ASV (1901), built with `scripts/build-bible.ts` (decided 2026-10-28; previously KJV only). Ask before downloading any other.
+- Church wants NLT, NIV, TPT, NKJV, AMP too: these are copyrighted. They come in only through the in-app licensed import (Word tab → Translations → Import licensed), which stores them in the church's data folder. Never bundle, download or scrape their text. Use KJV/ASV for all development and tests.
 
 ## Project layout (create as you go)
 ```

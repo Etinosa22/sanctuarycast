@@ -9,6 +9,9 @@ export function SlideStrip(props: {
   /** Set when the item came from the library rather than the service order. */
   onAddToService?: () => void
   onEditSong?: () => void
+  /** Translations offered as one-click switches for scripture. */
+  translations?: string[]
+  onSwitchTranslation?: (code: string) => void
 }) {
   const { item, state } = props
   if (!item) return <div className="flex flex-1 items-center justify-center text-sm text-neutral-500">Pick a service item, song or passage</div>
@@ -21,6 +24,21 @@ export function SlideStrip(props: {
         <span className="font-medium">{item.title}</span>
         <span className="text-xs text-neutral-500">click a slide to put it in Preview</span>
         <span className="flex-1" />
+        {item.scripture && props.onSwitchTranslation && (props.translations?.length ?? 0) > 1 && (
+          <div className="flex overflow-hidden rounded ring-1 ring-neutral-700" title="Switch translation">
+            {props.translations!.map((code) => (
+              <button
+                key={code}
+                onClick={() => code !== item.scripture!.translation && props.onSwitchTranslation!(code)}
+                className={`px-2 py-0.5 text-xs font-medium ${
+                  code === item.scripture!.translation ? 'bg-amber-600 text-white' : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
+                }`}
+              >
+                {code}
+              </button>
+            ))}
+          </div>
+        )}
         {props.onEditSong && (
           <button onClick={props.onEditSong} className="rounded px-2 py-0.5 text-xs text-neutral-300 hover:bg-neutral-800">
             Edit song

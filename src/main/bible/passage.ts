@@ -61,5 +61,6 @@ export function passageToItem(verses: Verse[], theme: Theme, translation: string
     const section = formatReference(ref).replace(/^.* (?=\d+[:\d])/, '')
     return { id: `${id}-${n + 1}`, kind: 'scripture', label, section, text }
   })
-  return { id, kind: 'scripture', title: `${formatReference(refOf(verses))} (${translation})`, slides }
+  const ref = formatReference(refOf(verses))
+  return { id, kind: 'scripture', title: `${ref} (${translation})`, slides, scripture: { ref, translation } }
 }

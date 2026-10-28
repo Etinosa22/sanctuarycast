@@ -8,6 +8,46 @@ Phase 1, Steps 1–8 done. Still open in Phase 1:
 
 The Phase 1 demo is ready to show the church.
 
+## 2026-10-28 — More translations and a translation picker
+Requested: other Bible translations, and a section at the bottom of the Word tab to choose translations.
+
+Decisions (asked and answered):
+- Bundle **ASV (1901)**, public domain, from scrollmapper/bible_databases `formats/csv/ASV.csv` (4.7 MB download, 7.3 MB built, 31,086 verses). CLAUDE.md updated: public-domain translations may be bundled.
+- Picker behaviour: **main + quick switch**. Tick the translations you want; one is main and used for search; each opened passage gets one-click buttons for the ticked ones.
+
+Built:
+- `src/main/bible/importBible.ts`: one importer for bundled builds and church imports.
+  - Accepts CSV `Book,Chapter,Verse,Text`, with or without a header, or a SanctuaryCast SQLite file.
+  - Book names are matched by name ("I Samuel", "Revelation of John") or, for 66 unknown names, by file order.
+  - The file is built under a temporary name and only replaces the old one when complete.
+- `scripts/build-bible.ts` replaces `build-kjv.mjs`. Run with `node --experimental-strip-types scripts/build-bible.ts <csv> <CODE> "<name>" "<source>"`.
+- `BibleLibrary` holds the bundled translations (`resources/bibles`) plus imports in `%APPDATA%\sanctuarycast\bibles`.
+  - A bundled code can't be overwritten or removed.
+  - Settings `{ main, enabled }` are kept consistent (main always ticked and installed) and saved in `library.sqlite`.
+- **Word tab → Translations** (bottom):
+  - Tick/untick each translation; **Make main**; **MAIN** badge; × removes an imported translation.
+  - The tab heading shows the main translation, and searches use it.
+- **+ Import licensed**: code, full name, and a required tick for "The church holds a licence from the publisher to project this translation", then a file picker. The main process enforces the tick too. This is the route for NIV, NLT, NKJV, AMP and TPT.
+- **Quick switch** on scripture: KJV | ASV buttons above the slides. The Preview slide is restaged in the new translation at the same position; Live is untouched.
+- Scripture items now carry `{ ref, translation }`.
+- Right panel fix: the suggestion box shrinks and scrolls on 1366×768 instead of running into Live control.
+
+### Tests and checks
+- 171 unit tests passing (14 new), covering:
+  - only KJV and ASV bundled; per-translation text
+  - ASV complete for every chapter
+  - settings normalisation and code validation
+  - CSV import (old-style book names, no header, quoted commas), replace and remove, survives restart
+  - refusing bundled overwrite and non-Bible files
+- Checked in the running app:
+  - The panel listed ASV and KJV (main).
+  - The John 3:16 ASV button switched Preview to "believeth on him … eternal life (ASV)" with Live unchanged.
+  - Make main moved searches to ASV.
+  - Unticking hid the switcher.
+  - Import was refused without the licence tick or with a bad code.
+  - The projector window cannot change translation settings.
+- Not automated: the native file picker for imports (the import code behind it is unit-tested).
+
 ## 2026-10-28 — Step 8. Keyboard shortcuts
 Decision (asked and answered): Space is **send and queue**.
 
@@ -197,6 +237,9 @@ Built:
   - prints "LORD" (small capitals in the printed KJV) as "Lord" almost everywhere (6 LORD vs 6,563 Lord).
   - Automatic stripping is unsafe: Psalm 18's title runs into the verse with no full stop. Fix by importing a better public-domain edition; needs a new download, so ask first.
   - 2026-10-28: church chose to keep the current KJV text for now. Operators can fix a psalm title in Preview before it goes Live.
+- ASV has the same source issues as the KJV (psalm titles inside verse 1) and renders God's name as "Jehovah".
+- Importing a large licensed file runs in the main process and pauses the app for about a second; do it before the service, not during. A worker thread would remove the pause.
+- Parallel view (two translations on one slide) is not built.
 - Keyword search uses English stemming, so "amazing" also finds "amazed".
 - A Bible passage is split into slides using the text size at the moment it is opened. Making the text much bigger afterwards does not re-split it, so a full slide can overflow. Reopen the passage after changing size.
 - One theme applies to everything staged next; per-kind defaults (songs vs scripture) are not built yet.

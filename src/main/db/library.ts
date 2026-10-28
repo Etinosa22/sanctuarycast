@@ -47,6 +47,22 @@ export class Library {
     this.db.prepare('INSERT INTO meta VALUES (?, ?)').run(key, String(this.clock()))
   }
 
+  /** Small JSON settings stored alongside the library. */
+  getSetting<T>(key: string): T | null {
+    const row = this.db.prepare('SELECT value FROM meta WHERE key = ?').get(`setting:${key}`) as { value: string } | undefined
+    try {
+      return row ? (JSON.parse(row.value) as T) : null
+    } catch {
+      return null
+    }
+  }
+
+  setSetting(key: string, value: unknown): void {
+    this.db
+      .prepare('INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value')
+      .run(`setting:${key}`, JSON.stringify(value))
+  }
+
   // ---- songs ----
 
   listSongs(filter = ''): SongSummary[] {

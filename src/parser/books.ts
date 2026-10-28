@@ -79,7 +79,7 @@ const ROWS: Row[] = [
   ['2 John', 1, ['2jn', '2jhn', '2joh', '2jo', '2j']],
   ['3 John', 1, ['3jn', '3jhn', '3joh', '3jo', '3j']],
   ['Jude', 1, ['jud', 'jd']],
-  ['Revelation', 22, ['rev', 're', 'rv', 'revelations', 'apocalypse']]
+  ['Revelation', 22, ['rev', 're', 'rv', 'revelations', 'apocalypse', 'revelationofjohn']]
 ]
 
 export const BOOKS: BookInfo[] = ROWS.map(([name, chapters, aliases, refName], i) => ({

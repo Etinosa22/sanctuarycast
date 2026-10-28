@@ -74,6 +74,22 @@ export interface SavedTheme {
   builtIn: boolean
 }
 
+export interface TranslationInfo {
+  code: string
+  name: string
+  /** 'public-domain' (bundled) or 'licensed' (imported by the church). */
+  licence: string
+  bundled: boolean
+  /** Ticked in the Word tab: offered as a quick switch. */
+  enabled: boolean
+}
+
+export interface TranslationSettings {
+  /** Used for searches. Always one of enabled. */
+  main: string
+  enabled: string[]
+}
+
 export interface BibleSearchResult {
   /** Set when the query is a reference like "John 5:10". */
   passage: ServiceItem | null
@@ -88,6 +104,8 @@ export interface ServiceItem {
   kind: SlideKind
   title: string
   slides: Slide[]
+  /** Scripture items: the passage and translation, so it can be re-opened in another translation. */
+  scripture?: { ref: string; translation: string }
 }
 
 export interface ServiceState {
@@ -179,7 +197,13 @@ export interface ScApi {
   getDisplays(): Promise<DisplaySummary>
   /** Library calls, console only. */
   bible: {
-    search(query: string): Promise<BibleSearchResult>
+    /** Searches the main translation, or `translation` if given and installed. */
+    search(query: string, translation?: string): Promise<BibleSearchResult>
+    translations(): Promise<{ translations: TranslationInfo[]; main: string }>
+    setTranslations(settings: TranslationSettings): Promise<{ translations: TranslationInfo[]; main: string }>
+    /** Asks for the licence confirmation in the UI first; opens a file picker. */
+    importTranslation(input: { code: string; name: string; licenceConfirmed: boolean }): Promise<{ ok: boolean; message: string }>
+    removeTranslation(code: string): Promise<void>
   }
   songs: {
     list(filter: string): Promise<SongSummary[]>

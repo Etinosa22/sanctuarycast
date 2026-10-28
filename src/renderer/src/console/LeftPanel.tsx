@@ -2,6 +2,8 @@ import { useEffect, useState, type ReactNode } from 'react'
 import type { BibleSearchResult, ServiceItem, ServiceState, SongSummary } from '../../../shared/types'
 import { ServiceOrderPanel } from './ServiceOrderPanel'
 import type { Selection } from './selection'
+import { TranslationsPanel } from './TranslationsPanel'
+import type { Translations } from './useTranslations'
 
 export type LeftTab = 'service' | 'songs' | 'word'
 
@@ -84,7 +86,13 @@ function SongsTab(props: { version: number; selection: Selection | null; onOpenS
   )
 }
 
-function WordTab(props: { history: ServiceItem[]; selection: Selection | null; onOpenPassage: (item: ServiceItem) => void; onSearchRef: (ref: string) => void }) {
+function WordTab(props: {
+  history: ServiceItem[]
+  selection: Selection | null
+  onOpenPassage: (item: ServiceItem) => void
+  onSearchRef: (ref: string) => void
+  translations: Translations
+}) {
   const [query, setQuery] = useState('')
   const [result, setResult] = useState<BibleSearchResult | null>(null)
   useEffect(() => {
@@ -94,13 +102,14 @@ function WordTab(props: { history: ServiceItem[]; selection: Selection | null; o
     return () => {
       current = false
     }
-  }, [query])
+    // Re-run when the main translation changes.
+  }, [query, props.translations.main])
 
   const openTitle = props.selection?.source === 'bible' ? props.selection.item.title : null
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="px-3 pt-3 pb-2">
-        <h2 className="text-[11px] font-semibold tracking-wider text-neutral-400 uppercase">Word · KJV</h2>
+        <h2 className="text-[11px] font-semibold tracking-wider text-neutral-400 uppercase">Word · {props.translations.main}</h2>
       </div>
       <form
         onSubmit={(e) => {
@@ -135,6 +144,7 @@ function WordTab(props: { history: ServiceItem[]; selection: Selection | null; o
           </>
         )}
       </ul>
+      <TranslationsPanel t={props.translations} />
     </div>
   )
 }
@@ -153,6 +163,7 @@ export function LeftPanel(props: {
   bibleHistory: ServiceItem[]
   onOpenPassage: (item: ServiceItem) => void
   onSearchRef: (ref: string) => void
+  translations: Translations
 }) {
   const tabs: [LeftTab, string][] = [
     ['service', 'Service'],
@@ -185,7 +196,13 @@ export function LeftPanel(props: {
         <SongsTab version={props.songsVersion} selection={props.selection} onOpenSong={props.onOpenSong} onEditSong={props.onEditSong} />
       )}
       {props.tab === 'word' && (
-        <WordTab history={props.bibleHistory} selection={props.selection} onOpenPassage={props.onOpenPassage} onSearchRef={props.onSearchRef} />
+        <WordTab
+          history={props.bibleHistory}
+          selection={props.selection}
+          onOpenPassage={props.onOpenPassage}
+          onSearchRef={props.onSearchRef}
+          translations={props.translations}
+        />
       )}
     </aside>
   )
