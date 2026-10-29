@@ -74,6 +74,8 @@ function tokenise(text: string): string[] {
     // "twenty-one" is one number; "4-13" is chapter-verse.
     .replace(/\b(twenty|thirty|forty|fourty|fifty|sixty|seventy|eighty|ninety)-(one|two|three|four|five|six|seven|eight|nine)\b/g, '$1 $2')
     .replace(/(\d)(st|nd|rd|th)\b/g, '$1$2 ')
+    // Whisper often writes chapter.verse: "Lamentations 3.22", "First Peter 5.7".
+    .replace(/(\d)\.(\d)/g, '$1:$2')
     .replace(/([:,\-])/g, ' $1 ')
     .replace(/[.!?;]+/g, ' . ')
     .replace(/[^a-z0-9:,\-. ]+/g, ' ')
@@ -123,6 +125,40 @@ function splitRunTogether(token: string, book: BookInfo): { chapter: number; ver
 interface BookMatch {
   book: BookInfo
   end: number
+  /** Matched a near-miss spelling ("Zeppaniah", "Hebrew"), not the name itself. */
+  fuzzy: boolean
+}
+
+function editDistance(a: string, b: string): number {
+  let prev = Array.from({ length: b.length + 1 }, (_, j) => j)
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i]
+    for (let j = 1; j <= b.length; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1))
+    prev = cur
+  }
+  return prev[b.length]
+}
+
+/**
+ * Whisper misspells unusual names: "Zeppaniah", "Zeffaniah", "Blamentations",
+ * "Hebrew", "2nd Cesalonians". Accept a single word within 1 edit (5+ letters),
+ * 2 edits (8+) or 3 edits (11+) of exactly one book name. Callers only use this
+ * when a chapter and verse follow, so ordinary words ("generous 3 times") don't
+ * become books.
+ */
+function nearBook(key: string): BookInfo | null {
+  if (key.replace(/^\d/, '').length < 5) return null
+  const limit = key.length >= 11 ? 3 : key.length >= 8 ? 2 : 1
+  let best: BookInfo | null = null
+  let bestDist = Infinity
+  let tie = false
+  for (const [name, book] of spokenBook) {
+    if (Math.abs(name.length - key.length) > limit) continue
+    const d = editDistance(key, name)
+    if (d < bestDist) (best = book), (bestDist = d), (tie = false)
+    else if (d === bestDist && book !== best) tie = true
+  }
+  return best && bestDist <= limit && !tie ? best : null
 }
 
 /** Longest book name starting at token i, with an optional "first/1st/1" prefix and "the book of". */
@@ -136,8 +172,15 @@ function bookAt(tokens: string[], i: number): BookMatch | null {
       if (words.length < len || words.some((w) => !/^[a-z]+$/.test(w))) continue
       const key = (start === j + 1 ? prefix : '') + words.join('')
       const book = spokenBook.get(key)
-      if (book) return { book, end: start + len }
+      if (book) return { book, end: start + len, fuzzy: false }
     }
+  }
+  // Near-miss spelling of a one-word name ("2nd Cesalonians" too), only right before a number.
+  const w = prefix ? j + 1 : j
+  const word = tokens[w]
+  if (word && /^[a-z]+$/.test(word) && isNum(tokens[w + 1])) {
+    const book = nearBook(prefix + word) ?? (prefix ? null : nearBook(word))
+    if (book) return { book, end: w + 1, fuzzy: true }
   }
   return null
 }
@@ -239,12 +282,14 @@ export function detectReferences(text: string, context: SpokenContext | null = n
         else ref = { book: book.id, chapter: n.chapter, verse: n.verse, endVerse: n.endVerse }
         const explicit = n.saidChapter || n.saidVerse || n.colon
         const valid = ref.chapter >= 1 && ref.chapter <= book.chapters && (ref.verse === undefined || ref.verse >= 1)
-        // Everyday-word books ("mark", "job") need clear wording, not just numbers after them.
-        const clearEnough = !COMMON_WORDS.has(book.name) || explicit
+        // Everyday-word books ("mark", "job") need clear wording, not just numbers after them;
+        // a near-miss spelling needs a verse as well as a chapter.
+        const clearEnough = (!COMMON_WORDS.has(book.name) || explicit) && (!m.fuzzy || ref.verse !== undefined)
         if (valid && clearEnough) {
           detections.push({
             ref,
-            confidence: explicit || ref.verse !== undefined ? 'high' : 'medium',
+            // A guessed spelling is never sure enough for Auto Live.
+            confidence: !m.fuzzy && (explicit || ref.verse !== undefined) ? 'high' : 'medium',
             source: 'explicit',
             heard: tokens.slice(i, n.end).join(' ').replace(/ ([:,-]) /g, '$1 ').replace(/ :/g, ':'),
             atEnd: n.end > lastWord

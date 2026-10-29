@@ -24,6 +24,8 @@ export interface Listening {
   level: number
   status: AiStatus
   lastHeard: { text: string; ms: number; at: number } | null
+  /** The last few things the engine heard, newest first, to see where it goes wrong. */
+  heardLog: { text: string; ms: number; at: number }[]
   suggestions: (AiSuggestion & { used?: boolean })[]
   error: string
   test: () => Promise<void>
@@ -57,6 +59,7 @@ export function useListening(onAuto?: (s: AiSuggestion) => void): Listening {
   const [level, setLevel] = useState(0)
   const [status, setStatus] = useState<AiStatus>({ state: 'stopped', message: '' })
   const [lastHeard, setLastHeard] = useState<Listening['lastHeard']>(null)
+  const [heardLog, setHeardLog] = useState<Listening['heardLog']>([])
   const [suggestions, setSuggestions] = useState<Listening['suggestions']>([])
   const [error, setError] = useState('')
 
@@ -79,7 +82,11 @@ export function useListening(onAuto?: (s: AiSuggestion) => void): Listening {
     void window.sc.ai.getMode().then(setAiModeState)
     const off = window.sc.ai.onEvent((e) => {
       if (e.type === 'status') setStatus(e.status)
-      else if (e.type === 'transcript') setLastHeard({ text: e.text, ms: e.ms, at: Date.now() })
+      else if (e.type === 'transcript') {
+        const h = { text: e.text, ms: e.ms, at: Date.now() }
+        setLastHeard(h)
+        setHeardLog((log) => [h, ...log].slice(0, 12))
+      }
       else {
         setSuggestions((list) => [e.suggestion, ...list.filter((s) => s.key !== e.suggestion.key && s.key !== e.suggestion.replaces)].slice(0, 25))
         if (e.suggestion.auto) onAutoRef.current?.(e.suggestion)
@@ -128,7 +135,14 @@ export function useListening(onAuto?: (s: AiSuggestion) => void): Listening {
       }
       // Labels only appear once access is granted.
       void refreshDevices()
-      const ctx = new AudioContext()
+      // Run the audio graph at 16 kHz so Chromium's own high-quality resampler does
+      // the conversion; fall back to the device rate (and our averaging) if refused.
+      let ctx: AudioContext
+      try {
+        ctx = new AudioContext({ sampleRate: TARGET_RATE })
+      } catch {
+        ctx = new AudioContext()
+      }
       const source = ctx.createMediaStreamSource(stream)
       const analyser = ctx.createAnalyser()
       analyser.fftSize = 1024
@@ -226,6 +240,7 @@ export function useListening(onAuto?: (s: AiSuggestion) => void): Listening {
     level,
     status,
     lastHeard,
+    heardLog,
     suggestions,
     error,
     test: () => open('test'),

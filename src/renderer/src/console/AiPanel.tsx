@@ -56,6 +56,9 @@ function ModeSwitch({ mode, onChange }: { mode: AiMode; onChange: (m: AiMode) =>
   )
 }
 
+/** Bluetooth headset microphones run in narrowband "hands-free" mode on Windows. */
+const isHeadset = (label: string) => /headset|hands-?free|bluetooth|airpods|buds/i.test(label)
+
 const ago = (t: number) => {
   const s = Math.round((Date.now() - t) / 1000)
   return s < 60 ? `${s}s ago` : `${Math.round(s / 60)}m ago`
@@ -68,6 +71,8 @@ export function AiPanel({ l, onApprove }: { l: Listening; onApprove: (item: Serv
   const [typedResult, setTypedResult] = useState('')
 
   const engineMissing = l.status.state === 'missing'
+  // "Default input" is whatever Windows uses; its label is on the 'default' entry.
+  const selectedLabel = (l.devices.find((d) => d.deviceId === (l.deviceId || 'default')) ?? l.devices[0])?.label ?? ''
   const statusDot =
     l.mode === 'listen' && l.status.state === 'ready'
       ? 'live-dot bg-rose-500'
@@ -147,11 +152,28 @@ export function AiPanel({ l, onApprove }: { l: Listening; onApprove: (item: Serv
           <LevelMeter level={l.level} active={l.mode !== 'off'} />
         </div>
         <ModeSwitch mode={l.aiMode} onChange={(m) => void l.setAiMode(m)} />
+        {isHeadset(selectedLabel) && (
+          <p className="text-[11px] text-amber-300">
+            Bluetooth headset mics switch to phone-call quality and are hard to understand. Use the laptop mic, a USB/wired mic or the mixer feed.
+          </p>
+        )}
         {(l.error || engineMissing || l.status.state === 'error') && <p className="text-[11px] text-rose-300">{l.error || l.status.message}</p>}
         {l.mode === 'listen' && l.lastHeard && (
           <p className="line-clamp-2 text-[11px] text-neutral-400" title={l.lastHeard.text}>
             <span className="text-neutral-500">Heard {ago(l.lastHeard.at)} ({(l.lastHeard.ms / 1000).toFixed(1)} s):</span> “{l.lastHeard.text}”
           </p>
+        )}
+        {l.heardLog.length > 1 && (
+          <details className="text-[11px] text-neutral-400">
+            <summary className="cursor-pointer text-neutral-500 hover:text-neutral-300">What it heard ({l.heardLog.length})</summary>
+            <ol className="mt-1 max-h-28 space-y-0.5 overflow-y-auto">
+              {l.heardLog.map((h) => (
+                <li key={h.at} className="truncate" title={h.text}>
+                  <span className="text-neutral-600">{new Date(h.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span> {h.text}
+                </li>
+              ))}
+            </ol>
+          </details>
         )}
       </div>
 

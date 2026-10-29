@@ -8,6 +8,48 @@ Phase 1, Steps 1–8 done. Still open in Phase 1:
 
 The Phase 1 demo is ready to show the church.
 
+## 2026-10-29 — Speech accuracy: measured and improved
+Reported: "the AI voice recognition isn't picking the word right".
+
+Measured with a test set:
+- 12 sermon sentences with harder book names, said by both Windows voices (Zira, David).
+- Each in clean form and in a "Bluetooth headset + room noise" form (phone band, about 12 dB SNR): 48 clips.
+- Every clip went through the real whisper engine and the real detector.
+
+| Setting | Clean | Headset + noise | Time per clip |
+| --- | --- | --- | --- |
+| Before (base.en, `-ac 384`) | 19/24 | 15/24 | 2.5 s |
+| + Bible-vocabulary `--prompt` | 18/24 | 16/24 | 3.3 s (and it invented wrong books) |
+| Parser fixes below, no prompt | **21/24** | **19/24** | 2.5 s |
+
+Changes:
+- **Parser understands how whisper writes references:**
+  - "Lamentations 3.22" and "First Peter 5.7" (a dot between chapter and verse).
+  - Near-miss book spellings: "Hebrew", "Zeppaniah", "Zeffaniah", "Blamentations", "Philippian". The word must be within 1 edit (2 for long names) of exactly one book and be followed by chapter and verse; such matches are medium confidence, so never Auto Live. Ordinary words ("I was generous 3 times") are still ignored.
+- **The vocabulary prompt was tried and rejected** (see table); a comment in `whisperSidecar.ts` records why.
+- **Cleaner audio:** the capture graph runs at 16 kHz, so Chromium's own resampler converts the microphone audio (falls back to the device rate if refused).
+- **Panel:**
+  - A warning when a Bluetooth headset is the chosen input: Windows switches headset mics to phone quality.
+  - **What it heard** shows the last 12 transcripts with times, so misheard words are visible.
+- Noted from the session log: one transcription failed when the engine connection reset (`ECONNRESET`); the engine restarts itself.
+
+Still misheard by the base.en model (the parser can't safely fix these):
+- "have a cut" / "have the coach" for **Habakkuk**
+- "due to Rn" for Deuteronomy
+- "2nds" for Second Thessalonians
+- "acclade the Aztees" for Ecclesiastes
+
+**Model comparison** (asked and answered: download base.en full precision, 148 MB, checksum verified; kept in scratch, not bundled):
+
+| Model | Clean | Headset + noise | Median / slowest per clip | Size |
+| --- | --- | --- | --- | --- |
+| base.en compressed q5_1 (current) | 21/24 | 19/24 | 2.3 s / 7.8 s | 60 MB |
+| base.en full precision | 21/24 | 20/24 | 2.0 s / **18.1 s** (a repetition loop) | 148 MB |
+
+- Decision: keep the compressed model. One clip of difference is noise at this sample size, and the full model is 2.5× bigger and had an 18 s stall.
+- Parser improved from these transcripts: near-miss spellings may follow "1st/2nd/first/second" and allow 3 edits for 11+ letter names ("2nd Cesalonians" → 2 Thessalonians 3:3).
+- small.en (190 MB) was offered and not chosen. It is the remaining lever for names the base model mishears ("have a cut" for Habakkuk) but is about 3× slower. These voices are US English text-to-speech; the church's own speakers and accents need testing with real recordings (the Phase 2 gate).
+
 ## 2026-10-28 — Recited verses, Auto Preview and Auto Live
 Requested:
 - Detect a verse when the preacher recites it without the reference.

@@ -30,6 +30,36 @@ describe('what whisper writes', () => {
   })
 })
 
+describe('how whisper actually wrote references in the speech tests', () => {
+  it.each([
+    ['Lamentations 3.22 says his mercies are new.', 'Lamentations 3:22'],
+    ['First Peter 5.7 tells us to cast our cares.', '1 Peter 5:7'],
+    ['Go with me to Zephaniah 3.17', 'Zephaniah 3:17'],
+    ['Hebrew 11 verse 1 defines faith', 'Hebrews 11:1'],
+    ['Go with me to Zeppaniah 3.17', 'Zephaniah 3:17'],
+    ['Go with me to Zeffaniah 3.17.', 'Zephaniah 3:17'],
+    ['Blamentations 322 says his mercies are new.', 'Lamentations 3:22'],
+    ['Lamentation 3 22', 'Lamentations 3:22'],
+    ['Philippian 4 verse 13', 'Philippians 4:13'],
+    ['Let us read 2nd Cesalonians 3 verse 3', '2 Thessalonians 3:3'],
+    ['first Corintians 13 4', '1 Corinthians 13:4']
+  ])('%s', (text, expected) => {
+    expect(refs(text)).toEqual([expected])
+  })
+
+  it('a guessed spelling is never high confidence (so never Auto Live)', () => {
+    expect(detectReferences('Zeppaniah 3.17').detections[0].confidence).toBe('medium')
+    expect(detectReferences('Zephaniah 3.17').detections[0].confidence).toBe('high')
+  })
+
+  it.each(['I was generous 3 times', 'the general 2 said', 'romance 4 ever', 'we sang 3.5 songs', 'Hebrews was 3 hours long'])(
+    'near-miss spelling ignores %j',
+    (text) => {
+      expect(refs(text)).toEqual([])
+    }
+  )
+})
+
 describe('chapter and verse run together by whisper', () => {
   it.each([
     ['we will read Romans 828, and', 'Romans 8:28'],

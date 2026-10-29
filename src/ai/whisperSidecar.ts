@@ -65,6 +65,8 @@ export class WhisperSidecar {
     // Going lower (256) was faster but made whisper loop on repeated phrases.
     // -mc 0: each chunk stands alone, so text from one chunk can't echo into the next.
     // -sns: ignore non-speech sounds.
+    // A Bible-vocabulary --prompt was measured on 48 test clips and did not help:
+    // accuracy about the same, 30% slower, and it invented wrong book names.
     const args = ['-m', this.model, '--host', '127.0.0.1', '--port', String(this.port), '-t', threads, '-ac', '384', '-nt', '-l', 'en', '-mc', '0', '-sns']
     const proc = spawn(this.bin, args, {
       stdio: 'ignore',
