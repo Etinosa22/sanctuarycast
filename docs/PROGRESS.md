@@ -8,6 +8,27 @@ Phase 1, Steps 1–8 done. Still open in Phase 1:
 
 The Phase 1 demo is ready to show the church.
 
+## 2026-11-12 — Audio inputs plugged in and out (e.g. a Behringer interface)
+Requested: when an audio interface such as a Behringer is connected, the app should notice it and let the operator choose it.
+
+Built (logic in `src/shared/audioInputs.ts`, pure and tested; UI in `useListening.ts` / `AiPanel.tsx`):
+- **New input banner:** when Windows reports a new input, the panel shows "New input connected: Line (UMC202HD 192k) — **Use it**".
+- **Unplugged while in use:** listening falls back to the default input with a notice. When the chosen input comes back, it switches back to it automatically ("… is connected again and in use"). A stream that ends (cable pulled) triggers the same check.
+- **Remembered by name as well as id:** if Windows gives the interface a new id (another USB port), the saved choice still finds it. Saved as `{ deviceId, label, channel }`; the older id-only setting is read once for compatibility.
+- **↻ button** re-scans inputs by hand.
+- The list hides Windows' duplicate "Default -" / "Communications -" entries and shows friendly names.
+- **Input channel choice** (Inputs 1+2 / Input 1 only / Input 2 only), shown only when the device really delivers two channels (as most audio interfaces do). With the mic or mixer on one input, picking it avoids halving the level by mixing in the empty one.
+- The level meter now measures the channel actually being listened to.
+
+### Tests and checks
+- 290 unit tests passing (10 new: plug/unplug diffs, Windows default changes ignored, finding the saved input by id or name, channel picking).
+- Simulated in the running app (a fake "Line (UMC202HD 192k)" added and removed through Windows' devicechange):
+  - Plugging in showed the banner; **Use it** selected and saved it.
+  - Unplugging fell back to the default with a notice.
+  - Replugging switched back automatically.
+- With a mono test input, the channel choice stayed hidden and the meter moved (peak 52%).
+- **Not tested with a real Behringer** (none on this PC). Check that the two-input choice appears and the level moves on the input the mic is plugged into.
+
 ## 2026-10-29 — Speech accuracy: measured and improved
 Reported: "the AI voice recognition isn't picking the word right".
 

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { displayName, isAlias, type InputChannel } from '../../../shared/audioInputs'
 import type { AiMode, ServiceItem } from '../../../shared/types'
 import { Icon } from './icons'
 import { PanelTitle } from './ui'
@@ -120,13 +121,23 @@ export function AiPanel({ l, onApprove }: { l: Listening; onApprove: (item: Serv
             title="Audio input: the preacher's microphone or a feed from the mixer"
             className="field min-w-0 flex-1 py-1 text-xs"
           >
-            <option value="">Default input</option>
-            {l.devices.map((d, i) => (
-              <option key={d.deviceId || i} value={d.deviceId}>
-                {d.label || `Input ${i + 1}`}
-              </option>
-            ))}
+            <option value="">Default input (Windows)</option>
+            {l.devices
+              .filter((d) => !isAlias(d))
+              .map((d, i) => (
+                <option key={d.deviceId || i} value={d.deviceId}>
+                  {d.label ? displayName(d.label) : `Input ${i + 1}`}
+                </option>
+              ))}
           </select>
+          <button
+            onClick={() => void l.rescan()}
+            title="Look for newly connected inputs"
+            aria-label="Look for newly connected inputs"
+            className="rounded-lg bg-neutral-800/80 px-1.5 text-neutral-300 ring-1 ring-white/5 hover:bg-neutral-700 hover:text-white"
+          >
+            ↻
+          </button>
           {l.mode === 'off' ? (
             <>
               <button onClick={() => void l.test()} className="rounded-lg bg-neutral-800/80 px-2 text-xs text-neutral-200 ring-1 ring-white/5 hover:bg-neutral-700" title="Check the level without listening">
@@ -147,9 +158,35 @@ export function AiPanel({ l, onApprove }: { l: Listening; onApprove: (item: Serv
             </button>
           )}
         </div>
+        {l.newInput && (
+          <div className="flex items-center gap-1.5 rounded-lg bg-emerald-500/10 px-2 py-1 text-[11px] text-emerald-200 ring-1 ring-emerald-400/25" data-new-input>
+            <span className="line-clamp-2 min-w-0 flex-1" title={l.newInput.label}>
+              New input connected: <b>{displayName(l.newInput.label)}</b>
+            </span>
+            <button onClick={() => l.setDeviceId(l.newInput!.deviceId)} className="rounded-md bg-emerald-500/25 px-1.5 font-semibold hover:bg-emerald-500/40">
+              Use it
+            </button>
+            <button onClick={l.dismissNewInput} aria-label="Dismiss" className="text-emerald-300/70 hover:text-white">
+              <Icon name="x" size={11} />
+            </button>
+          </div>
+        )}
+        {l.notice && <p className="text-[11px] text-sky-300">{l.notice}</p>}
         <div className="flex items-center gap-2">
           <Icon name="sparkles" size={12} className={l.mode !== 'off' ? 'text-emerald-400' : 'text-neutral-600'} />
           <LevelMeter level={l.level} active={l.mode !== 'off'} />
+          {l.inputChannels >= 2 && (
+            <select
+              value={l.channel}
+              onChange={(e) => l.setChannel(e.target.value as InputChannel)}
+              title="Audio interfaces have two inputs: listen to both, or only the one the mic or mixer is plugged into"
+              className="field w-auto py-0.5 text-[11px]"
+            >
+              <option value="mix">Inputs 1+2</option>
+              <option value="left">Input 1 only</option>
+              <option value="right">Input 2 only</option>
+            </select>
+          )}
         </div>
         <ModeSwitch mode={l.aiMode} onChange={(m) => void l.setAiMode(m)} />
         {isHeadset(selectedLabel) && (
